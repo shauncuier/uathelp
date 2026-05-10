@@ -50,7 +50,7 @@ export function UniversityList({ universities }: { universities: University[] })
             className="pl-9"
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val || "all")}>
           <SelectTrigger className="w-full sm:w-40">
             <SlidersHorizontal className="mr-2 size-4" />
             <SelectValue placeholder="Type" />
@@ -61,7 +61,7 @@ export function UniversityList({ universities }: { universities: University[] })
             ))}
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={setSort}>
+        <Select value={sort} onValueChange={(val) => setSort(val || "ranking")}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>

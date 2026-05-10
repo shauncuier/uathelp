@@ -1,18 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, Plus, Loader2, Copy, Check } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { Send, Sparkles, Loader2, Copy, Check, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: Date;
-}
+import { useChat } from "@ai-sdk/react";
 
 const suggestedPrompts = [
   "What are the top 5 public universities in Bangladesh?",
@@ -22,9 +16,7 @@ const suggestedPrompts = [
 ];
 
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, append } = useChat();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,43 +27,6 @@ export function ChatInterface() {
     }
   }, [messages]);
 
-  const handleSend = async (text?: string) => {
-    const content = text || input.trim();
-    if (!content || isStreaming) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content,
-      createdAt: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsStreaming(true);
-
-    // Simulate streaming response
-    const assistantId = (Date.now() + 1).toString();
-    const assistantMessage: Message = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      createdAt: new Date(),
-    };
-    setMessages((prev) => [...prev, assistantMessage]);
-
-    const mockResponse = getMockResponse(content);
-    for (let i = 0; i < mockResponse.length; i++) {
-      await new Promise((r) => setTimeout(r, 15));
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, content: mockResponse.slice(0, i + 1) } : m
-        )
-      );
-    }
-    setIsStreaming(false);
-  };
-
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -81,8 +36,17 @@ export function ChatInterface() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!isLoading && input.trim()) {
+        handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+      }
     }
+  };
+
+  const handlePromptClick = (prompt: string) => {
+    append({
+      role: 'user',
+      content: prompt,
+    });
   };
 
   return (
@@ -102,7 +66,7 @@ export function ChatInterface() {
               {suggestedPrompts.map((prompt) => (
                 <button
                   key={prompt}
-                  onClick={() => handleSend(prompt)}
+                  onClick={() => handlePromptClick(prompt)}
                   className="rounded-xl border border-border bg-card p-4 text-left text-sm transition-all hover:border-brand/30 hover:bg-accent"
                 >
                   {prompt}
@@ -140,7 +104,7 @@ export function ChatInterface() {
                 </div>
               </div>
             ))}
-            {isStreaming && (
+            {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-3">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10">
                   <Sparkles className="size-4 text-brand animate-pulse" />
@@ -153,45 +117,42 @@ export function ChatInterface() {
 
       {/* Input */}
       <div className="border-t border-border p-4">
-        <div className="mx-auto max-w-3xl">
+        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
           <div className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 focus-within:border-brand/50 transition-colors">
             <Textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Ask about admissions..."
               className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent p-2 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
-            <Button
-              size="icon"
-              onClick={() => handleSend()}
-              disabled={!input.trim() || isStreaming}
-              className="size-9 shrink-0 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50"
-            >
-              {isStreaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            </Button>
+            {isLoading ? (
+              <Button
+                type="button"
+                size="icon"
+                onClick={stop}
+                className="size-9 shrink-0 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90"
+              >
+                <StopCircle className="size-4" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim()}
+                className="size-9 shrink-0 rounded-lg bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-50"
+              >
+                <Send className="size-4" />
+              </Button>
+            )}
           </div>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             UAT AI can make mistakes. Verify important information with the university.
           </p>
-        </div>
+        </form>
       </div>
     </div>
   );
-}
-
-function getMockResponse(query: string): string {
-  const q = query.toLowerCase();
-  if (q.includes("buet") && q.includes("prepar")) {
-    return `Here's how to prepare for the BUET admission test:\n\n1. **Focus Areas**: Physics, Chemistry, and Mathematics from HSC syllabus\n2. **Practice**: Solve previous years' question papers (at least 10 years)\n3. **Negative Marking**: Be careful — wrong answers deduct 0.25 marks\n4. **Time Management**: 2 hours for 240 marks, plan accordingly\n5. **Resources**: Chayan Prokashoni BUET prep books are highly recommended\n\nThe exam is highly competitive with ~15,000 students competing for ~1,200 seats.`;
-  }
-  if (q.includes("top") && q.includes("public")) {
-    return `Here are the top 5 public universities in Bangladesh:\n\n1. **University of Dhaka (DU)** — Ranked #1, established 1921\n2. **Bangladesh University of Engineering & Technology (BUET)** — Premier engineering\n3. **University of Chittagong (CU)** — Large, established 1966\n4. **Rajshahi University (RU)** — 2nd oldest university\n5. **Shahjalal University of Science & Tech (SUST)** — Top for science\n\nEach has different admission windows. Would you like details about any specific university?`;
-  }
-  if (q.includes("scholar")) {
-    return `Scholarships available for Bangladeshi HSC students:\n\n1. **Government Merit Scholarship** — Based on SSC/HSC results\n2. **University-specific scholarships** — Each uni offers its own\n3. **Need-based financial aid** — Apply through university financial aid offices\n4. **Private organization scholarships** — Grameenphone, BRAC, etc.\n5. **International scholarships** — Commonwealth, Erasmus Mundus\n\nWould you like me to help you find scholarships matching your profile?`;
-  }
-  return `Thank you for your question about "${query.slice(0, 50)}..."\n\nBased on my knowledge of Bangladeshi university admissions:\n\n• I can provide information about admission requirements, deadlines, and processes\n• I have data on 150+ universities across Bangladesh\n• I can help compare universities and programs\n\nCould you please be more specific about what you'd like to know? For example:\n- Specific university admission requirements\n- GPA requirements for certain programs\n- Exam preparation strategies\n- Scholarship opportunities`;
 }
