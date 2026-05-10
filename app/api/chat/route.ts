@@ -16,7 +16,7 @@ Whenever possible, highlight key information like dates and GPAs in bold.`,
       messages,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Chat API Error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });

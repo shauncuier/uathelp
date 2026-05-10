@@ -16,7 +16,9 @@ const suggestedPrompts = [
 ];
 
 export function ChatInterface() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, append } = useChat();
+  const { messages, stop, setMessages, sendMessage, status } = useChat();
+  const isLoading = status === 'streaming' || status === 'submitted';
+  const [input, setInput] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -37,16 +39,19 @@ export function ChatInterface() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!isLoading && input.trim()) {
-        handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+        // append user message locally and trigger sendMessage
+        const userMsg = { id: String(Date.now()), role: 'user', content: input } as any;
+        setMessages((prev: any) => [...prev, userMsg]);
+        sendMessage(userMsg).catch(() => {});
+        setInput('');
       }
     }
   };
 
   const handlePromptClick = (prompt: string) => {
-    append({
-      role: 'user',
-      content: prompt,
-    });
+    const userMsg = { id: String(Date.now()), role: 'user', content: prompt } as any;
+    setMessages((prev: any) => [...prev, userMsg]);
+    sendMessage(userMsg).catch(() => {});
   };
 
   return (
@@ -88,10 +93,10 @@ export function ChatInterface() {
                     ? "rounded-br-md bg-brand text-brand-foreground"
                     : "rounded-bl-md bg-muted"
                 )}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
-                  {msg.role === "assistant" && msg.content && (
+                  <div className="whitespace-pre-wrap">{(msg as any).content ?? JSON.stringify(msg)}</div>
+                  {msg.role === "assistant" && ((msg as any).content ?? '').length > 0 && (
                     <button
-                      onClick={() => copyToClipboard(msg.content, msg.id)}
+                      onClick={() => copyToClipboard((msg as any).content ?? JSON.stringify(msg), msg.id)}
                       className="absolute -bottom-6 right-0 opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       {copiedId === msg.id ? (
@@ -117,12 +122,12 @@ export function ChatInterface() {
 
       {/* Input */}
       <div className="border-t border-border p-4">
-        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
+        <form onSubmit={(e) => { e.preventDefault(); if (!isLoading && input.trim()) { const userMsg = { id: String(Date.now()), role: 'user', content: input } as any; setMessages((prev: any) => [...prev, userMsg]); sendMessage(userMsg).catch(() => {}); setInput(''); } }} className="mx-auto max-w-3xl">
           <div className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 focus-within:border-brand/50 transition-colors">
             <Textarea
               ref={textareaRef}
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput((e.target as HTMLTextAreaElement).value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about admissions..."
               className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent p-2 focus-visible:ring-0 focus-visible:ring-offset-0"

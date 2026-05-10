@@ -63,7 +63,7 @@ export const columns: ColumnDef<UniversityAdmin>[] = [
 
       return (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <Button variant="ghost" className="size-8 p-0">
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="size-4" />
