@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
 import { Users, GraduationCap, FileText, Eye, TrendingUp, MessageSquare } from "lucide-react";
+import { universities } from "@/config/universities";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Admin Dashboard" };
 
-const stats = [
-  { label: "Total Users", value: "2,847", change: "+12%", icon: Users },
-  { label: "Universities", value: "156", change: "+3", icon: GraduationCap },
-  { label: "Blog Posts", value: "42", change: "+5", icon: FileText },
-  { label: "Page Views", value: "128K", change: "+18%", icon: Eye },
-  { label: "AI Chats", value: "45K", change: "+32%", icon: MessageSquare },
-  { label: "Conversion", value: "4.2%", change: "+0.5%", icon: TrendingUp },
-];
+export default async function AdminDashboardPage() {
+  const supabase = await createClient();
+  const { count: userCount } = await supabase.from("profiles").select("id", { count: "exact", head: true });
+  const { count: conversationCount } = await supabase.from("conversations").select("id", { count: "exact", head: true });
 
-export default function AdminDashboardPage() {
+  const stats = [
+    { label: "Total Users", value: String(userCount ?? 0), change: "live", icon: Users },
+    { label: "Universities", value: String(universities.length), change: "catalog", icon: GraduationCap },
+    { label: "Blog Posts", value: "6", change: "mdx-ready", icon: FileText },
+    { label: "Page Views", value: "128K", change: "+18%", icon: Eye },
+    { label: "AI Chats", value: String(conversationCount ?? 0), change: "saved", icon: MessageSquare },
+    { label: "Conversion", value: "4.2%", change: "+0.5%", icon: TrendingUp },
+  ];
+
   return (
     <div className="space-y-8">
       <div>

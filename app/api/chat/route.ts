@@ -2,6 +2,8 @@ import { mistral } from '@ai-sdk/mistral';
 import { createUIMessageStream, createUIMessageStreamResponse, convertToModelMessages, streamText, type UIMessage } from 'ai';
 import { universities } from '@/config/universities';
 import { extractAssistantText, getCachedAnswer, getLatestUserText, saveCachedAnswer } from '@/lib/chat-cache';
+import { saveConversationTurn } from '@/lib/chat-history';
+import { createClient as createSupabaseClient } from '@/lib/supabase/server';
 
 export const maxDuration = 30;
 
@@ -56,8 +58,15 @@ function buildFallbackReply(messages: UIMessage[]) {
 }
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const { conversationId, messages, timestamp }: { conversationId?: string; messages: UIMessage[]; timestamp?: string } = await req.json();
   const latestQuestion = getLatestUserText(messages);
+  const supabase = await createSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id ?? null;
+
+  const now = new Date(timestamp || new Date());
+  const currentDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const currentTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   if (!latestQuestion) {
     return createUIMessageStreamResponse({
@@ -80,6 +89,20 @@ export async function POST(req: Request) {
     console.warn("Chat cache lookup failed; continuing without cache.", cacheError);
   }
   if (cachedAnswer) {
+    if (conversationId && userId) {
+      try {
+        await saveConversationTurn({
+          conversationId,
+          userId,
+          question: latestQuestion,
+          response: cachedAnswer.answer_markdown,
+          model: cachedAnswer.model,
+        });
+      } catch (cacheError) {
+        console.warn("Conversation save failed; continuing without history.", cacheError);
+      }
+    }
+
     return createUIMessageStreamResponse({
       stream: createUIMessageStream({
         originalMessages: messages,
@@ -98,7 +121,10 @@ export async function POST(req: Request) {
       system: `You are an expert AI university admission assistant for Bangladeshi students. 
 You are integrated into "UAT Help". Your goal is to provide accurate, concise, and helpful answers about university admissions, deadlines, GPAs, exams, and scholarships in Bangladesh. 
 Keep your answers brief and well-formatted. Do not use extremely long paragraphs. 
-Whenever possible, highlight key information like dates and GPAs in bold.`,
+Whenever possible, highlight key information like dates and GPAs in bold.
+
+**Current Date and Time:** ${currentDate}, ${currentTime} (Bangladesh Time - IST)
+Use this information to provide up-to-date responses. When discussing deadlines, admission cycles, or time-sensitive information, always reference the current date to ensure accuracy.`,
       messages: await convertToModelMessages(messages),
     });
 
@@ -114,6 +140,15 @@ Whenever possible, highlight key information like dates and GPAs in bold.`,
               answerSource: "model",
               model: "mistral-large-latest",
             });
+            if (conversationId && userId) {
+              await saveConversationTurn({
+                conversationId,
+                userId,
+                question: latestQuestion,
+                response: answer,
+                model: "mistral-large-latest",
+              });
+            }
           } catch (cacheError) {
             console.warn("Chat cache save failed; continuing without cache.", cacheError);
           }
@@ -136,6 +171,15 @@ Whenever possible, highlight key information like dates and GPAs in bold.`,
           answerSource: "fallback",
           model: null,
         });
+        if (conversationId && userId) {
+          await saveConversationTurn({
+            conversationId,
+            userId,
+            question: latestQuestion,
+            response: fallbackReply,
+            model: null,
+          });
+        }
       } catch (cacheError) {
         console.warn("Chat cache save failed; continuing without cache.", cacheError);
       }

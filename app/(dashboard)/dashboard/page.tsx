@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GraduationCap, MessageSquare, Bookmark, Bell, ArrowRight, TrendingUp, Clock } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -19,12 +20,28 @@ const recentActivity = [
   { action: "Application deadline reminder: NSU", time: "2 days ago", icon: Bell },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const displayName = profile?.full_name ?? user?.email?.split("@")[0] ?? "Student";
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Welcome back! 👋</h1>
-        <p className="mt-1 text-muted-foreground">Here&apos;s an overview of your admission journey.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Welcome back, {displayName}! 👋</h1>
+          <p className="mt-1 text-muted-foreground">Here&apos;s an overview of your admission journey.</p>
+        </div>
+        {profile?.role && (
+          <div className="px-3 py-1.5 rounded-lg text-sm font-medium bg-brand/10 text-brand">
+            {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+          </div>
+        )}
       </div>
 
       {/* Stats grid */}

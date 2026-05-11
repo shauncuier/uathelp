@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,16 +13,20 @@ import { createClient } from "@/lib/supabase/client";
 export default function SignupPage() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
 
     const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
     if (error) {
@@ -31,8 +35,25 @@ export default function SignupPage() {
       return;
     }
 
-    // Redirect after signup (Supabase may require email confirmation depending on config)
-    router.push("/dashboard");
+    if (data.user) {
+      await supabase.from("profiles").upsert({
+        id: data.user.id,
+        email: data.user.email ?? email,
+        full_name: name,
+        role: "student",
+        is_verified: false,
+        is_blocked: false,
+        avatar_url: data.user.user_metadata?.avatar_url ?? null,
+      });
+    }
+
+    if (data.session) {
+      router.push(redirectTo);
+      return;
+    }
+
+    setMessage("Check your email to confirm your account.");
+    setLoading(false);
   };
 
   return (
@@ -59,6 +80,7 @@ export default function SignupPage() {
           <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword((e.target as HTMLInputElement).value)} />
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
+        {message && <p className="text-sm text-muted-foreground">{message}</p>}
         <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={loading}>
           {loading ? "Creating account..." : "Create Account"}
         </Button>

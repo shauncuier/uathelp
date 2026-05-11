@@ -22,6 +22,13 @@ export function ChatInterface() {
   const { messages, stop, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      prepareSendMessagesRequest: ({ id, messages }) => ({
+        body: {
+          conversationId: id,
+          messages,
+          timestamp: new Date().toISOString(),
+        },
+      }),
     }),
   });
   const isLoading = status === "streaming" || status === "submitted";
