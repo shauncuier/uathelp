@@ -109,6 +109,55 @@ SET role = 'admin', is_verified = true
 WHERE email = 'your-email@example.com';
 ```
 
+## Test Users
+
+### Quick Setup
+Create test users for development:
+
+```bash
+# Using Node.js script
+npx ts-node scripts/seed-users.ts
+```
+
+### Test Credentials
+
+| Role | Email | Password | Access |
+|------|-------|----------|--------|
+| Student | student1@test.uathelp.com | TestPass123!@# | `/dashboard`, `/chat` |
+| Student | student2@test.uathelp.com | TestPass123!@# | `/dashboard`, `/chat` |
+| Moderator | moderator@test.uathelp.com | TestPass123!@# | `/dashboard`, moderate content |
+| Admin | admin@test.uathelp.com | TestPass123!@# | `/admin/users`, full platform control |
+| Super Admin | superadmin@test.uathelp.com | TestPass123!@# | All admin features |
+
+### Testing Workflows
+
+**Student Access:**
+```
+1. Login as student1@test.uathelp.com
+2. Access /dashboard (should work)
+3. Try /admin/users (should redirect to /dashboard)
+4. Use AI chat at /chat
+```
+
+**Admin Features:**
+```
+1. Login as admin@test.uathelp.com
+2. Navigate to /admin/users
+3. View all users in management table
+4. Change user roles
+5. Block/unblock accounts
+```
+
+**Blocked Account:**
+```
+1. Login as admin
+2. Go to /admin/users → Block student2
+3. Logout and try to login as student2
+4. Should see /blocked page
+```
+
+See `SEED_USERS.md` for manual setup and `TEST_ACCOUNTS.md` for detailed testing guide.
+
 ## Email Rate Limiting
 
 Supabase has rate limits on authentication emails:
