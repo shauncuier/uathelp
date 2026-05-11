@@ -4,7 +4,7 @@ import { UniversityList } from "@/components/university/university-filters";
 
 export const metadata: Metadata = {
   title: "Universities",
-  description: "Browse 150+ Bangladeshi universities with detailed profiles, admission criteria, and ranking information.",
+  description: "Browse 250+ Bangladeshi public, private, engineering, and medical institutions with admission criteria.",
 };
 
 export default function UniversitiesPage() {

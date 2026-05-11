@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { Client } = require('pg');
-const dotenv = require('dotenv');
-const path = require('path');
+const { Client } = require("pg");
+const dotenv = require("dotenv");
+const path = require("path");
+const { universities } = require("../data/universities");
+const { circulars } = require("../data/circulars");
 
 // Load .env.local
-dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 
 const dbUrl = process.env.DATABASE_URL;
 
@@ -16,21 +18,6 @@ if (!dbUrl) {
 const client = new Client({
   connectionString: dbUrl,
 });
-
-const universities = [
-  { id: "1", name: "University of Dhaka", slug: "dhaka-university", type: "public", location: "Dhaka", description: "The oldest and largest university in Bangladesh, established in 1921.", website: "https://du.ac.bd", minGpa: 4.0, seatCount: 7200, establishedYear: 1921, ranking: 1, isFeatured: true, programs: ["CSE", "BBA", "Law", "English", "Physics", "Economics"], admissionDeadline: "2026-09-30", examDate: "2026-10-15" },
-  { id: "2", name: "BUET", slug: "buet", type: "engineering", location: "Dhaka", description: "Bangladesh University of Engineering and Technology — the premier engineering institution.", website: "https://buet.ac.bd", minGpa: 5.0, seatCount: 1200, establishedYear: 1962, ranking: 2, isFeatured: true, programs: ["CSE", "EEE", "ME", "CE", "Architecture"], admissionDeadline: "2026-10-15", examDate: "2026-11-01" },
-  { id: "3", name: "BRAC University", slug: "brac-university", type: "private", location: "Dhaka", description: "One of the top private universities known for liberal arts and sciences.", website: "https://bracu.ac.bd", minGpa: 3.5, seatCount: 5000, establishedYear: 2001, ranking: 5, isFeatured: true, programs: ["CSE", "BBA", "Pharmacy", "Architecture", "Law"], admissionDeadline: "2026-08-31" },
-  { id: "4", name: "North South University", slug: "north-south-university", type: "private", location: "Dhaka", description: "The first private university in Bangladesh, established in 1992.", website: "https://nsu.edu.bd", minGpa: 3.0, seatCount: 8000, establishedYear: 1992, ranking: 4, isFeatured: true, programs: ["CSE", "BBA", "Economics", "English", "Biochemistry"], admissionDeadline: "2026-09-15" },
-  { id: "5", name: "KUET", slug: "kuet", type: "engineering", location: "Khulna", description: "Khulna University of Engineering & Technology, a leading engineering institution.", website: "https://kuet.ac.bd", minGpa: 5.0, seatCount: 900, establishedYear: 2003, ranking: 6, isFeatured: false, programs: ["CSE", "EEE", "ME", "CE", "ECE"], admissionDeadline: "2026-10-20" },
-  { id: "6", name: "RUET", slug: "ruet", type: "engineering", location: "Rajshahi", description: "Rajshahi University of Engineering & Technology.", website: "https://ruet.ac.bd", minGpa: 5.0, seatCount: 800, establishedYear: 2003, ranking: 7, isFeatured: false, programs: ["CSE", "EEE", "ME", "CE", "IPE"], admissionDeadline: "2026-10-20" },
-  { id: "7", name: "Chittagong University", slug: "chittagong-university", type: "public", location: "Chittagong", description: "One of the largest public universities in the country.", website: "https://cu.ac.bd", minGpa: 3.5, seatCount: 5500, establishedYear: 1966, ranking: 3, isFeatured: true, programs: ["CSE", "BBA", "Marine Science", "Physics", "Chemistry"], admissionDeadline: "2026-09-30" },
-  { id: "8", name: "Rajshahi University", slug: "rajshahi-university", type: "public", location: "Rajshahi", description: "The second oldest university in Bangladesh.", website: "https://ru.ac.bd", minGpa: 3.5, seatCount: 4500, establishedYear: 1953, ranking: 8, isFeatured: false, programs: ["CSE", "BBA", "Law", "Pharmacy", "Applied Math"], admissionDeadline: "2026-09-30" },
-  { id: "9", name: "IUT", slug: "iut", type: "engineering", location: "Gazipur", description: "Islamic University of Technology — an OIC-sponsored institution.", website: "https://iut-dhaka.edu", minGpa: 5.0, seatCount: 600, establishedYear: 1981, ranking: 9, isFeatured: false, programs: ["CSE", "EEE", "MCE", "CEE", "TVE"], admissionDeadline: "2026-06-30" },
-  { id: "10", name: "Dhaka Medical College", slug: "dhaka-medical-college", type: "medical", location: "Dhaka", description: "The oldest and most prestigious medical college in Bangladesh.", website: "https://dmc.gov.bd", minGpa: 5.0, seatCount: 250, establishedYear: 1946, ranking: 10, isFeatured: true, programs: ["MBBS"], admissionDeadline: "2026-11-15", examDate: "2026-12-01" },
-  { id: "11", name: "SUST", slug: "sust", type: "public", location: "Sylhet", description: "Shahjalal University of Science and Technology.", website: "https://sust.edu", minGpa: 4.0, seatCount: 2500, establishedYear: 1991, ranking: 11, isFeatured: false, programs: ["CSE", "EEE", "Physics", "Chemistry", "FET"], admissionDeadline: "2026-09-30" },
-  { id: "12", name: "AIUB", slug: "aiub", type: "private", location: "Dhaka", description: "American International University-Bangladesh.", website: "https://aiub.edu", minGpa: 2.5, seatCount: 6000, establishedYear: 1994, ranking: 12, isFeatured: false, programs: ["CSE", "BBA", "EEE", "Architecture"], admissionDeadline: "2026-08-31" },
-];
 
 async function seed() {
   try {
@@ -61,26 +48,88 @@ async function seed() {
     `);
     console.log("Table 'universities' created or already exists.");
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admission_circulars (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        university_id UUID REFERENCES universities(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        summary TEXT,
+        content TEXT,
+        image_url TEXT,
+        deadline DATE,
+        exam_date DATE,
+        is_featured BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log("Table 'admission_circulars' created or already exists.");
+
     // Clear existing
-    await client.query('DELETE FROM universities;');
+    await client.query("DELETE FROM admission_circulars;");
+    await client.query("DELETE FROM universities;");
+
+    const universityIdsBySlug = new Map();
 
     // Insert data
     for (const u of universities) {
-      await client.query(`
+      const result = await client.query(
+        `
         INSERT INTO universities (
           name, slug, type, location, description, website, min_gpa, seat_count, 
           established_year, ranking, is_featured, programs, admission_deadline, exam_date
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
         )
-      `, [
-        u.name, u.slug, u.type, u.location, u.description, u.website, u.minGpa, u.seatCount,
-        u.establishedYear, u.ranking, u.isFeatured, JSON.stringify(u.programs), 
-        u.admissionDeadline || null, u.examDate || null
-      ]);
+        RETURNING id, slug
+      `,
+        [
+          u.name,
+          u.slug,
+          u.type,
+          u.location,
+          u.description,
+          u.website,
+          u.minGpa,
+          u.seatCount,
+          u.establishedYear,
+          u.ranking,
+          u.isFeatured,
+          JSON.stringify(u.programs),
+          u.admissionDeadline || null,
+          u.examDate || null,
+        ],
+      );
+      universityIdsBySlug.set(result.rows[0].slug, result.rows[0].id);
     }
-    console.log("Seeded 12 universities successfully.");
 
+    for (const circular of circulars) {
+      await client.query(
+        `
+        INSERT INTO admission_circulars (
+          university_id, title, slug, summary, content, image_url, deadline, exam_date, is_featured
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9
+        )
+      `,
+        [
+          universityIdsBySlug.get(circular.universitySlug) || null,
+          circular.title,
+          circular.slug,
+          circular.summary,
+          circular.content,
+          circular.imageUrl,
+          circular.deadline,
+          circular.examDate,
+          circular.isFeatured,
+        ],
+      );
+    }
+
+    console.log(
+      `Seeded ${universities.length} universities and ${circulars.length} circulars successfully.`,
+    );
   } catch (error) {
     console.error("Error seeding database:", error);
   } finally {
