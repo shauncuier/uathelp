@@ -1,21 +1,9 @@
 import { mistral } from '@ai-sdk/mistral';
 import { createUIMessageStream, createUIMessageStreamResponse, convertToModelMessages, streamText, type UIMessage } from 'ai';
 import { universities } from '@/config/universities';
+import { extractAssistantText, getCachedAnswer, getLatestUserText, saveCachedAnswer } from '@/lib/chat-cache';
 
 export const maxDuration = 30;
-
-function getLatestUserText(messages: UIMessage[]) {
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i];
-    if (message.role !== 'user') continue;
-    return message.parts
-      .map((part) => (part.type === 'text' ? part.text : ''))
-      .join(' ')
-      .trim();
-  }
-
-  return '';
-}
 
 function buildFallbackReply(messages: UIMessage[]) {
   const query = getLatestUserText(messages).toLowerCase();
@@ -69,6 +57,40 @@ function buildFallbackReply(messages: UIMessage[]) {
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
+  const latestQuestion = getLatestUserText(messages);
+
+  if (!latestQuestion) {
+    return createUIMessageStreamResponse({
+      stream: createUIMessageStream({
+        originalMessages: messages,
+        execute({ writer }) {
+          const reply = 'Ask me about university deadlines, GPA requirements, admission tests, or compare Bangladeshi universities.';
+          writer.write({ type: 'text-start', id: 'fallback-response' });
+          writer.write({ type: 'text-delta', id: 'fallback-response', delta: reply });
+          writer.write({ type: 'text-end', id: 'fallback-response' });
+        },
+      }),
+    });
+  }
+
+  let cachedAnswer = null;
+  try {
+    cachedAnswer = await getCachedAnswer(latestQuestion);
+  } catch (cacheError) {
+    console.warn("Chat cache lookup failed; continuing without cache.", cacheError);
+  }
+  if (cachedAnswer) {
+    return createUIMessageStreamResponse({
+      stream: createUIMessageStream({
+        originalMessages: messages,
+        execute({ writer }) {
+          writer.write({ type: 'text-start', id: 'cached-response' });
+          writer.write({ type: 'text-delta', id: 'cached-response', delta: cachedAnswer.answer_markdown });
+          writer.write({ type: 'text-end', id: 'cached-response' });
+        },
+      }),
+    });
+  }
 
   try {
     const result = streamText({
@@ -80,7 +102,24 @@ Whenever possible, highlight key information like dates and GPAs in bold.`,
       messages: await convertToModelMessages(messages),
     });
 
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      originalMessages: messages,
+      onFinish: async ({ responseMessage }) => {
+        const answer = extractAssistantText(responseMessage);
+        if (answer) {
+          try {
+            await saveCachedAnswer({
+              question: latestQuestion,
+              answerMarkdown: answer,
+              answerSource: "model",
+              model: "mistral-large-latest",
+            });
+          } catch (cacheError) {
+            console.warn("Chat cache save failed; continuing without cache.", cacheError);
+          }
+        }
+      },
+    });
   } catch (error) {
     const statusCode = typeof error === 'object' && error && 'statusCode' in error
       ? Number((error as { statusCode?: number }).statusCode)
@@ -89,6 +128,17 @@ Whenever possible, highlight key information like dates and GPAs in bold.`,
     if (statusCode === 401) {
       console.warn('Mistral unauthorized; serving local fallback response.');
       const fallbackReply = buildFallbackReply(messages);
+
+      try {
+        await saveCachedAnswer({
+          question: latestQuestion,
+          answerMarkdown: fallbackReply,
+          answerSource: "fallback",
+          model: null,
+        });
+      } catch (cacheError) {
+        console.warn("Chat cache save failed; continuing without cache.", cacheError);
+      }
 
       return createUIMessageStreamResponse({
         stream: createUIMessageStream({

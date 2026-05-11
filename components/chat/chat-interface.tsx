@@ -64,9 +64,9 @@ export function ChatInterface() {
       .join("");
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col">
+    <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col overflow-hidden">
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="min-h-0 flex-1 overflow-hidden p-4" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-brand/10">
@@ -139,7 +139,7 @@ export function ChatInterface() {
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t border-border p-4">
+      <div className="shrink-0 border-t border-border p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
