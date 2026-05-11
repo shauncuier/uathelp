@@ -19,6 +19,17 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.user_preferences (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  email_notifications boolean not null default true,
+  deadline_reminders boolean not null default true,
+  product_updates boolean not null default false,
+  weekly_digest boolean not null default false,
+  theme_preference text not null default 'system',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.universities (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -159,6 +170,7 @@ create index if not exists conversation_messages_conversation_id_idx on public.c
 create index if not exists chat_question_cache_last_used_at_idx on public.chat_question_cache(last_used_at desc);
 
 alter table public.profiles enable row level security;
+alter table public.user_preferences enable row level security;
 alter table public.saved_universities enable row level security;
 alter table public.bookmarks enable row level security;
 alter table public.conversations enable row level security;
@@ -182,6 +194,22 @@ drop policy if exists "profiles_self_insert" on public.profiles;
 create policy "profiles_self_insert" on public.profiles
   for insert to authenticated
   with check (auth.uid() = id or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+drop policy if exists "preferences_self_read" on public.user_preferences;
+create policy "preferences_self_read" on public.user_preferences
+  for select to authenticated
+  using (auth.uid() = user_id or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+drop policy if exists "preferences_self_write" on public.user_preferences;
+create policy "preferences_self_write" on public.user_preferences
+  for update to authenticated
+  using (auth.uid() = user_id or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'))
+  with check (auth.uid() = user_id or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+drop policy if exists "preferences_self_insert" on public.user_preferences;
+create policy "preferences_self_insert" on public.user_preferences
+  for insert to authenticated
+  with check (auth.uid() = user_id or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 
 drop policy if exists "universities_read" on public.universities;
 create policy "universities_read" on public.universities

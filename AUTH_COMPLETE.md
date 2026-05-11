@@ -67,6 +67,11 @@ Super Admin (4)
 - `/dashboard/notifications` - Notifications
 - `/dashboard/settings` - Settings
 
+**Settings Persistence:**
+- Profile fields are stored in `profiles`
+- Notification and theme preferences are stored in `user_preferences`
+- Session and route protection continue to use Supabase auth cookies
+
 **Admin Routes (Admin+):**
 - `/admin` - Admin dashboard
 - `/admin/users` - User management ⭐

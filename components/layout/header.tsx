@@ -1,23 +1,60 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Sparkles } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { mainNavItems } from "@/config/navigation";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 export function Header() {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!isMounted) return;
+      setSession(data.session);
+      setIsSessionLoading(false);
+    };
+
+    syncSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setIsSessionLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsMobileMenuOpen(false);
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <>
@@ -57,16 +94,31 @@ export function Header() {
           {/* Right side */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/login" className="hidden md:block">
-              <Button variant="ghost" size="sm">
-                Log in
-              </Button>
-            </Link>
-            <Link href="/signup" className="hidden md:block">
-              <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90">
-                Get Started
-              </Button>
-            </Link>
+            {!isSessionLoading && session ? (
+              <>
+                <Link href="/dashboard" className="hidden md:block">
+                  <Button variant="ghost" size="sm">
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={handleLogout}>
+                  Log out
+                </Button>
+              </>
+            ) : !isSessionLoading ? (
+              <>
+                <Link href="/login" className="hidden md:block">
+                  <Button variant="ghost" size="sm">
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/signup" className="hidden md:block">
+                  <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            ) : null}
 
             {/* Mobile menu toggle */}
             <Button
@@ -108,16 +160,31 @@ export function Header() {
                 </Link>
               ))}
               <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
-                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    Log in
-                  </Button>
-                </Link>
-                <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
-                    Get Started
-                  </Button>
-                </Link>
+                {!isSessionLoading && session ? (
+                  <>
+                    <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <Button className="w-full bg-brand text-brand-foreground hover:bg-brand/90" onClick={handleLogout}>
+                      Log out
+                    </Button>
+                  </>
+                ) : !isSessionLoading ? (
+                  <>
+                    <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full">
+                        Log in
+                      </Button>
+                    </Link>
+                    <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
+                        Get Started
+                      </Button>
+                    </Link>
+                  </>
+                ) : null}
               </div>
             </div>
           </motion.div>

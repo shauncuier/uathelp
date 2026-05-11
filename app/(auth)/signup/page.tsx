@@ -45,6 +45,15 @@ export default function SignupPage() {
         is_blocked: false,
         avatar_url: data.user.user_metadata?.avatar_url ?? null,
       });
+
+      await supabase.from("user_preferences").upsert({
+        user_id: data.user.id,
+        email_notifications: true,
+        deadline_reminders: true,
+        product_updates: false,
+        weekly_digest: false,
+        theme_preference: "system",
+      });
     }
 
     if (data.session) {

@@ -26,6 +26,20 @@ CREATE TABLE profiles (
 );
 ```
 
+### User Preferences Table
+```sql
+CREATE TABLE user_preferences (
+  user_id UUID PRIMARY KEY,
+  email_notifications BOOLEAN,
+  deadline_reminders BOOLEAN,
+  product_updates BOOLEAN,
+  weekly_digest BOOLEAN,
+  theme_preference TEXT,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+);
+```
+
 ### Role Permissions Table
 ```sql
 CREATE TABLE role_permissions (
@@ -60,7 +74,12 @@ CREATE TABLE role_permissions (
 - `/admin/*` - Requires `admin` or `super_admin` role
 - Public routes - No authentication required
 
-### 4. Blocked Accounts
+### 4. User Settings
+- `/dashboard/settings` - Profile, notification, and theme preferences
+- Settings are stored in `profiles` and `user_preferences`
+- Session security remains handled by Supabase cookies
+
+### 5. Blocked Accounts
 - If `is_blocked = true`, user is redirected to `/blocked` page
 - Admin can block/unblock users in user management
 

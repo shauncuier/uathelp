@@ -1,73 +1,43 @@
-"use client";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { SettingsForm } from "@/components/dashboard/settings-form";
 
-import { useState } from "react";
-import { User, BellRing, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+export const metadata: Metadata = { title: "Settings" };
 
-export default function SettingsPage() {
-  const [name, setName] = useState("Student");
-  const [email, setEmail] = useState("student@example.com");
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?redirectTo=/dashboard/settings");
+  }
+
+  const [{ data: profile }, { data: preferences }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+    supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
+  ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Profile Settings</h1>
-        <p className="mt-1 text-muted-foreground">Update your account details and notification preferences.</p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-brand/10">
-              <User className="size-5 text-brand" />
-            </div>
-            <div>
-              <h2 className="font-semibold">Profile</h2>
-              <p className="text-sm text-muted-foreground">Basic account details.</p>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="settings-name">Full Name</Label>
-              <Input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="settings-email">Email</Label>
-              <Input id="settings-email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <Button className="bg-brand text-brand-foreground hover:bg-brand/90">Save Changes</Button>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-brand/10">
-                <BellRing className="size-5 text-brand" />
-              </div>
-              <div>
-                <h2 className="font-semibold">Notifications</h2>
-                <p className="text-sm text-muted-foreground">Deadline reminders and product updates.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-brand/10">
-                <ShieldCheck className="size-5 text-brand" />
-              </div>
-              <div>
-                <h2 className="font-semibold">Security</h2>
-                <p className="text-sm text-muted-foreground">Supabase session security and route protection are enabled.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <SettingsForm
+      userId={user.id}
+      initialEmail={profile?.email ?? user.email ?? ""}
+      initialProfile={{
+        fullName: profile?.full_name ?? user.user_metadata?.full_name ?? "Student",
+        avatarUrl: profile?.avatar_url ?? user.user_metadata?.avatar_url ?? "",
+        role: profile?.role ?? "student",
+        isVerified: profile?.is_verified ?? false,
+        isBlocked: profile?.is_blocked ?? false,
+      }}
+      initialPreferences={{
+        emailNotifications: preferences?.email_notifications ?? true,
+        deadlineReminders: preferences?.deadline_reminders ?? true,
+        productUpdates: preferences?.product_updates ?? false,
+        weeklyDigest: preferences?.weekly_digest ?? false,
+        themePreference: preferences?.theme_preference ?? "system",
+      }}
+    />
   );
 }

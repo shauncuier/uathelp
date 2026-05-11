@@ -49,6 +49,23 @@ export async function proxy(request: NextRequest) {
     });
   }
 
+  const { data: preferences } = await supabase
+    .from("user_preferences")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!preferences) {
+    await supabase.from("user_preferences").insert({
+      user_id: user.id,
+      email_notifications: true,
+      deadline_reminders: true,
+      product_updates: false,
+      weekly_digest: false,
+      theme_preference: "system",
+    });
+  }
+
   // Check if user is blocked
   if (profile?.is_blocked) {
     const redirect = NextResponse.redirect(new URL("/blocked", request.url));
