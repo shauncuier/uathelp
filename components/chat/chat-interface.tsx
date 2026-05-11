@@ -1,12 +1,15 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { Send, Sparkles, Loader2, Copy, Check, StopCircle } from "lucide-react";
+import { Send, Sparkles, Copy, Check, StopCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 
 const suggestedPrompts = [
   "What are the top 5 public universities in Bangladesh?",
@@ -16,9 +19,13 @@ const suggestedPrompts = [
 ];
 
 export function ChatInterface() {
-  const { messages, stop, setMessages, sendMessage, status } = useChat();
-  const isLoading = status === 'streaming' || status === 'submitted';
-  const [input, setInput] = useState<string>('');
+  const { messages, stop, sendMessage, status, error } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+    }),
+  });
+  const isLoading = status === "streaming" || status === "submitted";
+  const [input, setInput] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -39,20 +46,22 @@ export function ChatInterface() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!isLoading && input.trim()) {
-        // append user message locally and trigger sendMessage
-        const userMsg = { id: String(Date.now()), role: 'user', content: input } as any;
-        setMessages((prev: any) => [...prev, userMsg]);
-        sendMessage(userMsg).catch(() => {});
-        setInput('');
+        void sendMessage({ text: input });
+        setInput("");
       }
     }
   };
 
   const handlePromptClick = (prompt: string) => {
-    const userMsg = { id: String(Date.now()), role: 'user', content: prompt } as any;
-    setMessages((prev: any) => [...prev, userMsg]);
-    sendMessage(userMsg).catch(() => {});
+    if (!isLoading) {
+      void sendMessage({ text: prompt });
+    }
   };
+
+  const getMessageText = (message: (typeof messages)[number]) =>
+    message.parts
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .join("");
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
@@ -80,27 +89,36 @@ export function ChatInterface() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-6 pb-4">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn("flex gap-3", msg.role === "user" && "justify-end")}>
-                {msg.role === "assistant" && (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10">
-                    <Sparkles className="size-4 text-brand" />
-                  </div>
-                )}
-                <div className={cn("group relative max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                  msg.role === "user"
-                    ? "rounded-br-md bg-brand text-brand-foreground"
-                    : "rounded-bl-md bg-muted"
-                )}>
-                  <div className="whitespace-pre-wrap">{(msg as any).content ?? JSON.stringify(msg)}</div>
-                  {msg.role === "assistant" && ((msg as any).content ?? '').length > 0 && (
+              <div className="mx-auto max-w-3xl space-y-6 pb-4">
+                {messages.map((msg) => (
+                  <div key={msg.id} className={cn("flex gap-3", msg.role === "user" && "justify-end")}>
+                    {msg.role === "assistant" && (
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10">
+                        <Sparkles className="size-4 text-brand" />
+                      </div>
+                    )}
+                <div className={cn(
+                    "group relative max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                    msg.role === "user"
+                      ? "rounded-br-md bg-brand text-brand-foreground"
+                      : "rounded-bl-md bg-muted"
+                  )}>
+                  {msg.role === "assistant" ? (
+                    <div className="prose prose-sm max-w-none prose-p:my-0 prose-ul:my-0 prose-ol:my-0 prose-li:my-0 prose-strong:text-foreground">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {getMessageText(msg)}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{getMessageText(msg)}</div>
+                  )}
+                  {msg.role === "assistant" && getMessageText(msg).length > 0 && (
                     <button
-                      onClick={() => copyToClipboard((msg as any).content ?? JSON.stringify(msg), msg.id)}
-                      className="absolute -bottom-6 right-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      {copiedId === msg.id ? (
-                        <Check className="size-3.5 text-green-500" />
+                      onClick={() => copyToClipboard(getMessageText(msg), msg.id)}
+                       className="absolute -bottom-6 right-0 opacity-0 transition-opacity group-hover:opacity-100"
+                     >
+                       {copiedId === msg.id ? (
+                         <Check className="size-3.5 text-green-500" />
                       ) : (
                         <Copy className="size-3.5 text-muted-foreground hover:text-foreground" />
                       )}
@@ -122,14 +140,24 @@ export function ChatInterface() {
 
       {/* Input */}
       <div className="border-t border-border p-4">
-        <form onSubmit={(e) => { e.preventDefault(); if (!isLoading && input.trim()) { const userMsg = { id: String(Date.now()), role: 'user', content: input } as any; setMessages((prev: any) => [...prev, userMsg]); sendMessage(userMsg).catch(() => {}); setInput(''); } }} className="mx-auto max-w-3xl">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!isLoading && input.trim()) {
+              void sendMessage({ text: input });
+              setInput("");
+            }
+          }}
+          className="mx-auto max-w-3xl"
+        >
           <div className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 focus-within:border-brand/50 transition-colors">
             <Textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput((e.target as HTMLTextAreaElement).value)}
+              onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about admissions..."
+              disabled={status !== "ready"}
               className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent p-2 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
@@ -153,6 +181,7 @@ export function ChatInterface() {
               </Button>
             )}
           </div>
+          {error && <p className="mt-2 text-center text-xs text-destructive">Something went wrong.</p>}
           <p className="mt-2 text-center text-xs text-muted-foreground">
             UAT AI can make mistakes. Verify important information with the university.
           </p>
