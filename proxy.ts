@@ -10,12 +10,29 @@ function copyCookies(source: NextResponse, target: NextResponse) {
 export async function proxy(request: NextRequest) {
   const response = await updateSession(request);
   const pathname = request.nextUrl.pathname;
+  
+  // Protected routes that require authentication
   const isDashboardRoute = pathname.startsWith("/dashboard");
   const isAdminRoute = pathname.startsWith("/admin");
   const isChatRoute = pathname === "/chat" || pathname.startsWith("/chat/");
+  const isBookmarksRoute = pathname === "/bookmarks" || pathname.startsWith("/bookmarks/");
+  const isSavedRoute = pathname === "/saved" || pathname.startsWith("/saved/");
+  const isNotificationsRoute = pathname === "/notifications" || pathname.startsWith("/notifications/");
+  const isApplicationsRoute = pathname === "/applications" || pathname.startsWith("/applications/");
+  const isSettingsRoute = pathname === "/settings" || pathname.startsWith("/settings/");
+
+  const isProtectedRoute = 
+    isDashboardRoute || 
+    isAdminRoute || 
+    isChatRoute || 
+    isBookmarksRoute || 
+    isSavedRoute || 
+    isNotificationsRoute || 
+    isApplicationsRoute || 
+    isSettingsRoute;
 
   // Allow public routes without auth
-  if (!isDashboardRoute && !isAdminRoute && !isChatRoute) {
+  if (!isProtectedRoute) {
     return response;
   }
 
