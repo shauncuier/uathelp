@@ -1,23 +1,23 @@
-import { Hero } from "@/components/landing/hero";
+import { PremiumHero } from "@/components/landing/premium-hero";
 import { TrustedBy } from "@/components/landing/trusted-by";
-import { Features } from "@/components/landing/features";
-import { AIShowcase } from "@/components/landing/ai-showcase";
-import { UniversityCategories } from "@/components/landing/university-categories";
-import { Testimonials } from "@/components/landing/testimonials";
-import { FAQ } from "@/components/landing/faq";
-import { CTA } from "@/components/landing/cta";
+import { PremiumFeatures } from "@/components/landing/premium-features";
+import { PremiumAIShowcase } from "@/components/landing/premium-ai-showcase";
+import { PremiumUniversityCategories } from "@/components/landing/premium-university-categories";
+import { PremiumTestimonials } from "@/components/landing/premium-testimonials";
+import { PremiumFAQ } from "@/components/landing/premium-faq";
+import { PremiumCTA } from "@/components/landing/premium-cta";
 
 export default function HomePage() {
   return (
     <>
-      <Hero />
+      <PremiumHero />
       <TrustedBy />
-      <Features />
-      <AIShowcase />
-      <UniversityCategories />
-      <Testimonials />
-      <FAQ />
-      <CTA />
+      <PremiumFeatures />
+      <PremiumAIShowcase />
+      <PremiumUniversityCategories />
+      <PremiumTestimonials />
+      <PremiumFAQ />
+      <PremiumCTA />
     </>
   );
 }
