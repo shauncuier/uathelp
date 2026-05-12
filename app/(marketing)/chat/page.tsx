@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { ChatInterface } from "@/components/chat/chat-interface";
+import { PremiumChatbot } from "@/components/chat/premium-chatbot";
 
 export const metadata: Metadata = {
-  title: "AI Chat",
+  title: "AI Chat | UAT Help",
   description: "Chat with our AI assistant about university admissions in Bangladesh.",
 };
 
 export default function ChatPage() {
   return (
-    <div className="pt-16">
-      <ChatInterface />
+    <div className="min-h-screen bg-background">
+      <PremiumChatbot />
     </div>
   );
 }
