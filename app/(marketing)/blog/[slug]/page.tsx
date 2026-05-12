@@ -1,17 +1,20 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Clock, Share2 } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Share2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { Metadata } from "next";
+import { BlogPostContent } from "@/components/blog/blog-post-content";
 
-const posts: Record<string, { title: string; category: string; date: string; readTime: string; content: string }> = {
+const posts: Record<string, { title: string; category: string; date: string; readTime: string; content: string; author: string; tags: string[] }> = {
   "complete-admission-guide-2026": {
     title: "Complete University Admission Guide 2026",
     category: "Guide",
     date: "2026-04-15",
     readTime: "12 min",
+    author: "Dr. Ahmed Hassan",
+    tags: ["Admissions", "Guide", "2026", "Universities"],
     content: `
 University admissions in Bangladesh follow a structured process that varies between public and private institutions. This comprehensive guide covers everything you need to know for the 2026 admission season.
 
@@ -64,7 +67,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = posts[slug];
   if (!post) return { title: "Post Not Found" };
-  return { title: post.title, description: post.content.slice(0, 160) };
+  return {
+    title: post.title,
+    description: post.content.slice(0, 160),
+    authors: [{ name: post.author }],
+    keywords: post.tags,
+  };
 }
 
 export default async function BlogPostPage({ params }: Props) {
@@ -73,54 +81,29 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-24 pt-28 sm:px-6 lg:px-8">
-      <Link href="/blog" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-8">
-        <ArrowLeft className="size-4" /> Back to Blog
-      </Link>
+    <div className="min-h-screen bg-background">
+      {/* Breadcrumb and navigation */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-8">
+        <Link href="/blog" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
+          <ArrowLeft className="size-4" />Back to Blog
+        </Link>
+      </div>
 
-      <article>
-        <Badge variant="secondary">{post.category}</Badge>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{post.title}</h1>
-        <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1"><Calendar className="size-4" />{new Date(post.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
-          <span className="flex items-center gap-1"><Clock className="size-4" />{post.readTime} read</span>
+      {/* Article content */}
+      <BlogPostContent post={post} />
+
+      {/* Related posts suggestion */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center">
+          <p className="text-lg font-semibold mb-4">Explore More Guides</p>
+          <Link href="/blog">
+            <Button variant="outline" className="rounded-lg gap-2">
+              View All Articles
+              <ArrowLeft className="size-4 rotate-180" />
+            </Button>
+          </Link>
         </div>
-
-        <Separator className="my-8" />
-
-        <div className="prose prose-zinc dark:prose-invert max-w-none">
-          {post.content.split("\n\n").map((paragraph, i) => {
-            if (paragraph.startsWith("## ")) {
-              return <h2 key={i} className="mt-8 mb-4 text-xl font-bold">{paragraph.replace("## ", "")}</h2>;
-            }
-            if (paragraph.startsWith("- ")) {
-              return (
-                <ul key={i} className="my-4 space-y-2">
-                  {paragraph.split("\n").map((line, j) => (
-                    <li key={j} className="text-muted-foreground text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: line.replace("- ", "").replace(/\*\*(.*?)\*\*/g, "<strong class='text-foreground'>$1</strong>") }} />
-                  ))}
-                </ul>
-              );
-            }
-            if (paragraph.match(/^\d\./)) {
-              return (
-                <ol key={i} className="my-4 space-y-2 list-decimal list-inside">
-                  {paragraph.split("\n").map((line, j) => (
-                    <li key={j} className="text-muted-foreground text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: line.replace(/^\d+\.\s/, "").replace(/\*\*(.*?)\*\*/g, "<strong class='text-foreground'>$1</strong>") }} />
-                  ))}
-                </ol>
-              );
-            }
-            return <p key={i} className="text-muted-foreground text-sm leading-relaxed my-4">{paragraph}</p>;
-          })}
-        </div>
-
-        <Separator className="my-8" />
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Found this helpful? Share it with fellow students.</p>
-          <Button variant="outline" size="sm"><Share2 className="mr-2 size-4" />Share</Button>
-        </div>
-      </article>
+      </div>
     </div>
   );
 }
