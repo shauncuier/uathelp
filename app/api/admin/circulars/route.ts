@@ -2,26 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
-// Validation schema for university creation/update
-const UniversitySchema = z.object({
-  name: z.string().min(2, "University name must be at least 2 characters"),
-  shortCode: z.string().min(2).max(10),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  city: z.string().min(2),
-  type: z.enum(["public", "private", "international"]),
-  established: z.number().int(),
-  website: z.string().url("Invalid website URL"),
-  phone: z.string().optional(),
-  email: z.string().email("Invalid email").optional(),
-  logo: z.string().url().optional(),
-  banner: z.string().url().optional(),
-  ranking: z.number().int().positive().optional(),
-  programs: z.array(z.string()).default([]),
-  admissionFee: z.number().positive().optional(),
-  admissionDeadline: z.string().optional(),
+// Validation schema for admission circulars
+const CircularSchema = z.object({
+  title: z.string().min(5, "Title must be at least 5 characters"),
+  universityId: z.string().uuid("Invalid university ID"),
+  description: z.string().min(20, "Description must be at least 20 characters"),
+  content: z.string().min(50, "Content must be at least 50 characters"),
+  programs: z.array(z.string()).min(1, "At least one program is required"),
+  applicationDeadline: z.string().refine(
+    (date) => new Date(date) > new Date(),
+    "Application deadline must be in the future"
+  ),
+  admissionDate: z.string().optional(),
+  resultDate: z.string().optional(),
+  applicationFee: z.number().positive().optional(),
+  requiredDocuments: z.array(z.string()).default([]),
+  contactEmail: z.string().email("Invalid email").optional(),
+  contactPhone: z.string().optional(),
+  attachmentUrl: z.string().url().optional(),
+  status: z.enum(["active", "closed", "draft"]).default("draft"),
+  featured: z.boolean().default(false),
 });
 
-type University = z.infer<typeof UniversitySchema>;
+type Circular = z.infer<typeof CircularSchema>;
 
 // Helper to check admin role
 async function checkAdminRole(userId: string): Promise<boolean> {
@@ -35,7 +38,7 @@ async function checkAdminRole(userId: string): Promise<boolean> {
   return profile?.role === "admin" || profile?.role === "moderator";
 }
 
-// GET /api/admin/universities - Get all universities
+// GET /api/admin/circulars - Get all circulars
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -55,18 +58,25 @@ export async function GET(request: NextRequest) {
     const page = searchParams.get("page") || "1";
     const limit = searchParams.get("limit") || "20";
     const search = searchParams.get("search") || "";
-    const type = searchParams.get("type") || "";
+    const status = searchParams.get("status") || "";
+    const universityId = searchParams.get("universityId") || "";
 
-    let query = supabase.from("universities").select("*", { count: "exact" });
+    let query = supabase
+      .from("admission_circulars")
+      .select("*, universities(name, shortCode)", { count: "exact" });
 
     if (search) {
       query = query.or(
-        `name.ilike.%${search}%,shortCode.ilike.%${search}%,city.ilike.%${search}%`
+        `title.ilike.%${search}%,description.ilike.%${search}%`
       );
     }
 
-    if (type) {
-      query = query.eq("type", type);
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    if (universityId) {
+      query = query.eq("universityId", universityId);
     }
 
     const pageNum = parseInt(page);
@@ -74,7 +84,7 @@ export async function GET(request: NextRequest) {
     const offset = (pageNum - 1) * limitNum;
 
     const { data, error, count } = await query
-      .order("name")
+      .order("applicationDeadline", { ascending: false })
       .range(offset, offset + limitNum - 1);
 
     if (error) throw error;
@@ -89,15 +99,15 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching universities:", error);
+    console.error("Error fetching circulars:", error);
     return NextResponse.json(
-      { error: "Failed to fetch universities" },
+      { error: "Failed to fetch circulars" },
       { status: 500 }
     );
   }
 }
 
-// POST /api/admin/universities - Create a new university
+// POST /api/admin/circulars - Create a new circular
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -114,13 +124,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = UniversitySchema.parse(body);
+    const validatedData = CircularSchema.parse(body);
+
+    // Verify university exists
+    const { data: university, error: universityError } = await supabase
+      .from("universities")
+      .select("id")
+      .eq("id", validatedData.universityId)
+      .single();
+
+    if (universityError || !university) {
+      return NextResponse.json(
+        { error: "University not found" },
+        { status: 404 }
+      );
+    }
 
     const { data, error } = await supabase
-      .from("universities")
+      .from("admission_circulars")
       .insert([
         {
           ...validatedData,
+          postedById: user.id,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -139,9 +164,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("Error creating university:", error);
+    console.error("Error creating circular:", error);
     return NextResponse.json(
-      { error: "Failed to create university" },
+      { error: "Failed to create circular" },
       { status: 500 }
     );
   }
