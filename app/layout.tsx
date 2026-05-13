@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { AuthProvider } from "@/lib/firebase/auth-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
@@ -130,11 +131,13 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
-        <ThemeProvider>
-          <TooltipProvider delay={0}>
-            {children}
-          </TooltipProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <TooltipProvider delay={0}>
+              {children}
+            </TooltipProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

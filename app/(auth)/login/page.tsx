@@ -8,12 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/client";
+import { signIn, signInWithGoogle } from "@/lib/firebase/auth";
 import { loginSchema } from "@/lib/validations";
 import { ZodError } from "zod";
 
 export default function LoginPage() {
-  const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
@@ -33,16 +32,7 @@ export default function LoginPage() {
       // Validate input
       const validatedData = loginSchema.parse({ email, password });
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: validatedData.email,
-        password: validatedData.password,
-      });
-
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
-      }
+      await signIn(validatedData.email, validatedData.password);
 
       // Redirect on successful sign-in
       router.push(redirectTo);
@@ -55,8 +45,27 @@ export default function LoginPage() {
         });
         setFieldErrors(errors);
         setError("Please fix the errors below");
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError("An unexpected error occurred");
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await signInWithGoogle();
+      // Redirect after successful Google sign-in
+      router.push(redirectTo);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to sign in with Google");
       }
       setLoading(false);
     }
@@ -112,7 +121,7 @@ export default function LoginPage() {
         <Separator className="flex-1" />
       </div>
 
-      <Button variant="outline" className="w-full gap-2" onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}>
+      <Button variant="outline" className="w-full gap-2" onClick={handleGoogleSignIn} disabled={loading}>
         <Mail className="size-4" />
         Continue with Google
       </Button>

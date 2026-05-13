@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/client";
+import { signUp, signInWithGoogle, updateUserProfile } from "@/lib/firebase/auth";
+import { setDocument } from "@/lib/firebase/database";
 import { signupSchema } from "@/lib/validations";
 import { ZodError } from "zod";
 
 export default function SignupPage() {
-  const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
@@ -44,45 +44,46 @@ export default function SignupPage() {
         agreeToTerms,
       });
 
-      const { data, error } = await supabase.auth.signUp({
-        email: validatedData.email,
-        password: validatedData.password,
-        options: { data: { full_name: validatedData.fullName } },
-      });
+      // Create user in Firebase Auth
+      const userCredential = await signUp(validatedData.email, validatedData.password);
 
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
+      // Update user profile with full name
+      await updateUserProfile(validatedData.fullName);
+
+      // Create user profile document in Firestore
+      if (userCredential.user) {
+        await setDocument(
+          "profiles",
+          userCredential.user.uid,
+          {
+            id: userCredential.user.uid,
+            email: userCredential.user.email ?? validatedData.email,
+            displayName: validatedData.fullName,
+            role: "student",
+            isVerified: false,
+            isBlocked: false,
+            photoURL: userCredential.user.photoURL ?? null,
+            createdAt: new Date().toISOString(),
+          }
+        );
+
+        // Create user preferences document
+        await setDocument(
+          "userPreferences",
+          userCredential.user.uid,
+          {
+            userId: userCredential.user.uid,
+            emailNotifications: true,
+            deadlineReminders: true,
+            productUpdates: false,
+            weeklyDigest: false,
+            themePreference: "system",
+          }
+        );
       }
 
-      if (data.user) {
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          email: data.user.email ?? validatedData.email,
-          full_name: validatedData.fullName,
-          role: "student",
-          is_verified: false,
-          is_blocked: false,
-          avatar_url: data.user.user_metadata?.avatar_url ?? null,
-        });
-
-        await supabase.from("user_preferences").upsert({
-          user_id: data.user.id,
-          email_notifications: true,
-          deadline_reminders: true,
-          product_updates: false,
-          weekly_digest: false,
-          theme_preference: "system",
-        });
-      }
-
-      if (data.session) {
-        router.push(redirectTo);
-        return;
-      }
-
-      setMessage("Check your email to confirm your account.");
+      // Redirect on successful sign-up
+      router.push(redirectTo);
     } catch (err) {
       if (err instanceof ZodError) {
         const errors: Record<string, string> = {};
@@ -92,10 +93,64 @@ export default function SignupPage() {
         });
         setFieldErrors(errors);
         setError("Please fix the errors below");
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError("An unexpected error occurred");
       }
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const userCredential = await signInWithGoogle();
+
+      // Create user profile document if it doesn't exist
+      if (userCredential.user) {
+        await setDocument(
+          "profiles",
+          userCredential.user.uid,
+          {
+            id: userCredential.user.uid,
+            email: userCredential.user.email,
+            displayName: userCredential.user.displayName,
+            role: "student",
+            isVerified: true, // Google sign-in is verified
+            isBlocked: false,
+            photoURL: userCredential.user.photoURL,
+            createdAt: new Date().toISOString(),
+          },
+          true // merge to avoid overwriting if document exists
+        );
+
+        // Create user preferences document if it doesn't exist
+        await setDocument(
+          "userPreferences",
+          userCredential.user.uid,
+          {
+            userId: userCredential.user.uid,
+            emailNotifications: true,
+            deadlineReminders: true,
+            productUpdates: false,
+            weeklyDigest: false,
+            themePreference: "system",
+          },
+          true // merge to avoid overwriting if document exists
+        );
+      }
+
+      // Redirect after successful Google sign-in
+      router.push(redirectTo);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to sign in with Google");
+      }
       setLoading(false);
     }
   };
@@ -187,7 +242,7 @@ export default function SignupPage() {
         <Separator className="flex-1" />
       </div>
 
-      <Button variant="outline" className="w-full gap-2" onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}>
+      <Button variant="outline" className="w-full gap-2" onClick={handleGoogleSignIn} disabled={loading}>
         <Mail className="size-4" />
         Continue with Google
       </Button>
