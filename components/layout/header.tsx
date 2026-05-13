@@ -1,24 +1,22 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Sparkles } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { mainNavItems } from "@/config/navigation";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/firebase/auth-context";
+import { logOut } from "@/lib/firebase/auth";
 
 export function Header() {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
+  const { user, loading: isSessionLoading, isAuthenticated } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -26,31 +24,8 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const syncSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!isMounted) return;
-      setSession(data.session);
-      setIsSessionLoading(false);
-    };
-
-    syncSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setIsSessionLoading(false);
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logOut();
     setIsMobileMenuOpen(false);
     router.push("/");
     router.refresh();
@@ -94,7 +69,7 @@ export function Header() {
           {/* Right side */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            {!isSessionLoading && session ? (
+            {!isSessionLoading && isAuthenticated ? (
               <>
                 <Link href="/dashboard" className="hidden md:block">
                   <Button variant="ghost" size="sm">
@@ -160,7 +135,7 @@ export function Header() {
                 </Link>
               ))}
               <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4">
-                {!isSessionLoading && session ? (
+                {!isSessionLoading && isAuthenticated ? (
                   <>
                     <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="outline" className="w-full">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { verifyFirebaseToken, adminDb, checkAdminRoleFromAdmin } from "@/lib/firebase/admin";
 
 // Validation schema for university creation/update
 const UniversitySchema = z.object({
@@ -23,28 +23,12 @@ const UniversitySchema = z.object({
 
 type University = z.infer<typeof UniversitySchema>;
 
-// Helper to check admin role
-async function checkAdminRole(userId: string): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-
-  return profile?.role === "admin" || profile?.role === "moderator";
-}
-
 // GET /api/admin/universities - Get all universities
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user || !(await checkAdminRole(user.id))) {
+    if (!decodedToken || !(await checkAdminRoleFromAdmin(decodedToken.uid))) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -57,35 +41,45 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const type = searchParams.get("type") || "";
 
-    let query = supabase.from("universities").select("*", { count: "exact" });
+    // Build Firestore query
+    let query: FirebaseFirestore.Query = adminDb.collection("universities");
 
+    if (type) {
+      query = query.where("type", "==", type);
+    }
+
+    query = query.orderBy("name");
+
+    const snapshot = await query.get();
+    let universities = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Client-side search filter (Firestore doesn't support ilike)
     if (search) {
-      query = query.or(
-        `name.ilike.%${search}%,shortCode.ilike.%${search}%,city.ilike.%${search}%`
+      const searchLower = search.toLowerCase();
+      universities = universities.filter(
+        (u: any) =>
+          u.name?.toLowerCase().includes(searchLower) ||
+          u.shortCode?.toLowerCase().includes(searchLower) ||
+          u.city?.toLowerCase().includes(searchLower)
       );
     }
 
-    if (type) {
-      query = query.eq("type", type);
-    }
-
+    // Pagination
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
-
-    const { data, error, count } = await query
-      .order("name")
-      .range(offset, offset + limitNum - 1);
-
-    if (error) throw error;
+    const paginatedData = universities.slice(offset, offset + limitNum);
 
     return NextResponse.json({
-      data,
+      data: paginatedData,
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limitNum),
+        total: universities.length,
+        pages: Math.ceil(universities.length / limitNum),
       },
     });
   } catch (error) {
@@ -100,13 +94,9 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/universities - Create a new university
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user || !(await checkAdminRole(user.id))) {
+    if (!decodedToken || !(await checkAdminRoleFromAdmin(decodedToken.uid))) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -116,21 +106,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = UniversitySchema.parse(body);
 
-    const { data, error } = await supabase
-      .from("universities")
-      .insert([
-        {
-          ...validatedData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ])
-      .select()
-      .single();
+    const now = new Date().toISOString();
+    const docRef = await adminDb.collection("universities").add({
+      ...validatedData,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-    if (error) throw error;
+    const newDoc = await docRef.get();
 
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(
+      { id: docRef.id, ...newDoc.data() },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -146,5 +134,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

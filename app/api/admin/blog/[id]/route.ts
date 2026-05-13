@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { verifyFirebaseToken, adminDb, checkAdminRoleFromAdmin } from "@/lib/firebase/admin";
 
 // Validation schema for blog posts
 const BlogPostSchema = z.object({
@@ -17,18 +17,6 @@ const BlogPostSchema = z.object({
   readTime: z.number().int().positive().optional(),
 });
 
-// Helper to check admin role
-async function checkAdminRole(userId: string): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-
-  return profile?.role === "admin" || profile?.role === "moderator";
-}
-
 // PATCH /api/admin/blog/[id] - Update a blog post
 export async function PATCH(
   request: NextRequest,
@@ -36,13 +24,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user || !(await checkAdminRole(user.id))) {
+    if (!decodedToken || !(await checkAdminRoleFromAdmin(decodedToken.uid))) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -52,16 +36,25 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = BlogPostSchema.parse(body);
 
+    const docRef = adminDb.collection("blogPosts").doc(id);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return NextResponse.json(
+        { error: "Blog post not found" },
+        { status: 404 }
+      );
+    }
+
     // If slug is being changed, check if new slug exists
     if (validatedData.slug) {
-      const { data: existingPost } = await supabase
-        .from("blog_posts")
-        .select("id")
-        .eq("slug", validatedData.slug)
-        .neq("id", id)
-        .single();
+      const existingSnapshot = await adminDb
+        .collection("blogPosts")
+        .where("slug", "==", validatedData.slug)
+        .get();
 
-      if (existingPost) {
+      const otherWithSlug = existingSnapshot.docs.find((doc) => doc.id !== id);
+      if (otherWithSlug) {
         return NextResponse.json(
           { error: "Slug already exists" },
           { status: 400 }
@@ -69,30 +62,16 @@ export async function PATCH(
       }
     }
 
-    const { data, error } = await supabase
-      .from("blog_posts")
-      .update({
-        ...validatedData,
-        updatedAt: new Date(),
-        publishedAt:
-          validatedData.status === "published"
-            ? new Date()
-            : null,
-      })
-      .eq("id", id)
-      .select()
-      .single();
+    const now = new Date().toISOString();
+    await docRef.update({
+      ...validatedData,
+      updatedAt: now,
+      publishedAt: validatedData.status === "published" ? now : null,
+    });
 
-    if (error) throw error;
+    const updatedDoc = await docRef.get();
 
-    if (!data) {
-      return NextResponse.json(
-        { error: "Blog post not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(data);
+    return NextResponse.json({ id: updatedDoc.id, ...updatedDoc.data() });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -116,25 +95,26 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user || !(await checkAdminRole(user.id))) {
+    if (!decodedToken || !(await checkAdminRoleFromAdmin(decodedToken.uid))) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const { error } = await supabase
-      .from("blog_posts")
-      .delete()
-      .eq("id", id);
+    const docRef = adminDb.collection("blogPosts").doc(id);
+    const docSnap = await docRef.get();
 
-    if (error) throw error;
+    if (!docSnap.exists) {
+      return NextResponse.json(
+        { error: "Blog post not found" },
+        { status: 404 }
+      );
+    }
+
+    await docRef.delete();
 
     return NextResponse.json({ success: true });
   } catch (error) {

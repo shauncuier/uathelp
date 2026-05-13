@@ -43,7 +43,7 @@ export default function BookmarksPage() {
           <Bookmark className="size-5 text-brand" />
           <div>
             <h2 className="font-semibold">Bookmark articles as you research</h2>
-            <p className="text-sm text-muted-foreground">This section is ready for Supabase persistence and user-specific bookmarks.</p>
+            <p className="text-sm text-muted-foreground">This section is ready for Firestore persistence and user-specific bookmarks.</p>
           </div>
         </div>
       </div>

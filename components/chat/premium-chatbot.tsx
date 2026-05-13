@@ -1,74 +1,86 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Send, MessageCircle, Loader2, Copy, Check } from "lucide-react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import {
+  Send,
+  Sparkles,
+  Copy,
+  Check,
+  StopCircle,
+  Bot,
+  User,
+  RotateCcw,
+  Trash2,
+  ChevronDown,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
+import { cn } from "@/lib/utils";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 
 const SUGGESTED_PROMPTS = [
-  "Which university is best for Engineering?",
-  "How do I apply to DU?",
-  "What are the admission requirements?",
-  "Tell me about scholarship opportunities",
+  { text: "What are the top 5 public universities?", emoji: "🏛️" },
+  { text: "How do I prepare for the BUET admission test?", emoji: "📐" },
+  { text: "What scholarships are available for HSC students?", emoji: "🎓" },
+  { text: "Compare DU and BRAC University for CSE", emoji: "⚖️" },
+  { text: "What's the admission deadline for Dhaka University?", emoji: "📅" },
+  { text: "Tell me about medical college admissions", emoji: "🩺" },
 ];
 
 export function PremiumChatbot() {
-  const [messages, setMessages] = useState<Array<Message>>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Hi! I'm your AI advisor for university admissions in Bangladesh. I can help you find the perfect university, understand admission requirements, and guide you through the entire process. What would you like to know?",
-      timestamp: new Date(),
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { messages, stop, sendMessage, status, error, setMessages } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      prepareSendMessagesRequest: ({ id, messages }) => ({
+        body: {
+          conversationId: id,
+          messages,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    }),
+  });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const isLoading = status === "streaming" || status === "submitted";
+  const [input, setInput] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll only when user is already near the bottom
+  const isNearBottomRef = useRef(true);
 
   useEffect(() => {
-    scrollToBottom();
+    if (isNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
-  const handleSendMessage = async (messageText?: string) => {
-    const textToSend = messageText || input;
-    if (!textToSend.trim()) return;
+  // Track scroll position
+  const handleScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollButton(fromBottom > 200);
+    isNearBottomRef.current = fromBottom < 150;
+  }, []);
 
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: textToSend,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    // Simulate AI response (in production, this would call an API)
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `I understand you're asking about "${textToSend}". I have comprehensive information about Bangladeshi universities, admission processes, and academic programs. Would you like me to provide specific details about university rankings, admission timelines, required documents, or anything else?`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1500);
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "0px";
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = Math.min(scrollHeight, 160) + "px";
+    }
+  }, [input]);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -76,218 +88,223 @@ export function PremiumChatbot() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text || isLoading) return;
+    void sendMessage({ text });
+    setInput("");
+  };
+
+  const handlePromptClick = (prompt: string) => {
+    if (!isLoading) {
+      void sendMessage({ text: prompt });
+    }
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
+  };
+
+  const getMessageText = (message: (typeof messages)[number]) =>
+    message.parts
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .join("");
+
+  const isEmpty = messages.length === 0;
+
   return (
-    <section className="relative py-24 lg:py-32">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl"
-          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
-          transition={{ duration: 6, repeat: Infinity }}
-        />
-      </div>
-
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 mb-6">
-            <MessageCircle className="size-4 text-blue-400" />
-            <span className="text-sm font-medium text-foreground">AI Chatbot</span>
+    <div className="chat-root">
+      {/* Messages area */}
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="chat-messages"
+      >
+        {isEmpty ? (
+          /* ── Empty state ── */
+          <div className="chat-empty">
+            <div className="chat-empty-icon">
+              <div className="chat-empty-icon-ring" />
+              <Sparkles className="size-8 text-brand relative z-10" />
+            </div>
+            <h1 className="chat-empty-title">UAT AI Advisor</h1>
+            <p className="chat-empty-subtitle">
+              Your intelligent guide to university admissions in Bangladesh.
+              <br className="hidden sm:block" />
+              Ask about deadlines, requirements, rankings, or scholarships.
+            </p>
+            <div className="chat-prompts">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt.text}
+                  onClick={() => handlePromptClick(prompt.text)}
+                  className="chat-prompt-card"
+                >
+                  <span className="chat-prompt-emoji">{prompt.emoji}</span>
+                  <span className="chat-prompt-text">{prompt.text}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">Meet Your AI Advisor</span>
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Chat with our intelligent assistant trained on 270+ Bangladeshi universities. Get instant answers about admissions, requirements, and scholarships.
-          </p>
-        </motion.div>
+        ) : (
+          /* ── Messages ── */
+          <div className="chat-thread">
+            {/* Clear button */}
+            {messages.length > 0 && !isLoading && (
+              <div className="chat-thread-actions">
+                <button onClick={handleClearChat} className="chat-clear-btn">
+                  <Trash2 className="size-3.5" />
+                  Clear conversation
+                </button>
+              </div>
+            )}
 
-        {/* Chat Container */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="relative"
-        >
-          {/* Gradient Border */}
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {messages.map((msg) => {
+              const text = getMessageText(msg);
+              const isUser = msg.role === "user";
 
-          {/* Chat Window */}
-          <div className="relative rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden shadow-2xl shadow-blue-500/5">
-            {/* Messages Container */}
-            <div className="h-96 overflow-y-auto space-y-4 p-6 scroll-smooth">
-              <AnimatePresence>
-                {messages.map((message, index) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    {/* Avatar */}
-                    {message.role === "assistant" && (
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                          <MessageCircle className="w-4 h-4 text-white" />
-                        </div>
-                      </div>
+              return (
+                <div key={msg.id} className={cn("chat-msg", isUser && "chat-msg-user")}>
+                  {/* Avatar */}
+                  <div className={cn("chat-avatar", isUser ? "chat-avatar-user" : "chat-avatar-ai")}>
+                    {isUser ? (
+                      <User className="size-4" />
+                    ) : (
+                      <Bot className="size-4" />
                     )}
+                  </div>
 
-                    {/* Message Bubble */}
-                    <div
-                      className={`flex-1 max-w-xs lg:max-w-md group ${
-                        message.role === "user" ? "text-right" : ""
-                      }`}
-                    >
-                      <div
-                        className={`inline-block rounded-2xl px-4 py-3 ${
-                          message.role === "user"
-                            ? "bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 text-foreground"
-                            : "bg-muted/50 border border-border/50 text-muted-foreground"
-                        }`}
-                      >
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                      </div>
-
-                      {/* Copy Button for assistant messages */}
-                      {message.role === "assistant" && (
-                        <motion.button
-                          initial={{ opacity: 0 }}
-                          whileHover={{ opacity: 1 }}
-                          onClick={() => copyToClipboard(message.content, message.id)}
-                          className="mt-2 p-1 rounded-lg hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
-                          title="Copy message"
-                        >
-                          {copiedId === message.id ? (
-                            <Check className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <Copy className="w-4 h-4 text-muted-foreground" />
-                          )}
-                        </motion.button>
+                  {/* Bubble */}
+                  <div className={cn("chat-bubble-wrap", isUser && "items-end")}>
+                    <span className="chat-role-label">
+                      {isUser ? "You" : "UAT AI"}
+                    </span>
+                    <div className={cn("chat-bubble", isUser ? "chat-bubble-user" : "chat-bubble-ai")}>
+                      {isUser ? (
+                        <p className="whitespace-pre-wrap">{text}</p>
+                      ) : (
+                        <div className="chat-markdown">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {text}
+                          </ReactMarkdown>
+                        </div>
                       )}
                     </div>
 
-                    {/* User Avatar */}
-                    {message.role === "user" && (
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-                          <span className="text-xs font-bold text-white">Y</span>
-                        </div>
+                    {/* Actions for AI messages */}
+                    {!isUser && text.length > 0 && (
+                      <div className="chat-msg-actions">
+                        <button
+                          onClick={() => copyToClipboard(text, msg.id)}
+                          className="chat-action-btn"
+                          title="Copy response"
+                        >
+                          {copiedId === msg.id ? (
+                            <>
+                              <Check className="size-3.5 text-emerald-500" />
+                              <span className="text-emerald-500">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3.5" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {/* Loading Indicator */}
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-3 justify-start"
-                >
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                      <Loader2 className="w-4 h-4 text-white animate-spin" />
-                    </div>
                   </div>
-                  <div className="bg-muted/50 border border-border/50 rounded-2xl px-4 py-3">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce delay-100" />
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce delay-200" />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Area */}
-            <div className="border-t border-border/50 bg-card/50 p-4 backdrop-blur-sm">
-              {/* Suggested Prompts */}
-              {messages.length === 1 && (
-                <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {SUGGESTED_PROMPTS.map((prompt, idx) => (
-                    <motion.button
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      onClick={() => handleSendMessage(prompt)}
-                      className="text-left text-xs p-2 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 transition-colors hover:border-blue-500/30"
-                    >
-                      {prompt}
-                    </motion.button>
-                  ))}
                 </div>
-              )}
+              );
+            })}
 
-              {/* Input Field */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="Ask me anything about university admissions..."
-                  className="flex-1 rounded-lg border border-border/50 bg-muted/30 px-4 py-2 text-sm placeholder-muted-foreground focus:outline-none focus:border-blue-500/50 focus:bg-muted/50 transition-all"
-                  disabled={isLoading}
-                />
-                <Button
-                  size="icon"
-                  onClick={() => handleSendMessage()}
-                  disabled={isLoading || !input.trim()}
-                  className="rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
+            {/* Streaming indicator */}
+            {isLoading && messages[messages.length - 1]?.role === "user" && (
+              <div className="chat-msg">
+                <div className="chat-avatar chat-avatar-ai">
+                  <Bot className="size-4" />
+                </div>
+                <div className="chat-bubble-wrap">
+                  <span className="chat-role-label">UAT AI</span>
+                  <div className="chat-bubble chat-bubble-ai">
+                    <div className="chat-thinking">
+                      <div className="chat-thinking-dot" style={{ animationDelay: "0ms" }} />
+                      <div className="chat-thinking-dot" style={{ animationDelay: "150ms" }} />
+                      <div className="chat-thinking-dot" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
+
+            <div ref={bottomRef} className="h-px" />
+          </div>
+        )}
+
+        {/* Scroll to bottom FAB */}
+        {showScrollButton && (
+          <button onClick={scrollToBottom} className="chat-scroll-fab">
+            <ChevronDown className="size-4" />
+          </button>
+        )}
+      </div>
+
+      {/* ── Input bar ── */}
+      <div className="chat-input-bar">
+        <div className="chat-input-container">
+          <div className="chat-input-row">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about university admissions..."
+              disabled={isLoading}
+              rows={1}
+              className="chat-textarea"
+            />
+            <div className="chat-input-actions">
+              {isLoading ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={stop}
+                  className="chat-send-btn chat-stop-btn"
+                  title="Stop generating"
+                >
+                  <StopCircle className="size-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="icon"
+                  disabled={!input.trim()}
+                  onClick={handleSend}
+                  className="chat-send-btn"
+                  title="Send message"
+                >
+                  <Send className="size-4" />
+                </Button>
+              )}
             </div>
           </div>
-        </motion.div>
-
-        {/* Features Below Chat */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          className="mt-12 grid gap-4 sm:grid-cols-3 text-center text-sm"
-        >
-          <div className="p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
-            <p className="font-semibold text-foreground mb-1">Instant Answers</p>
-            <p className="text-muted-foreground text-xs">Get real-time responses about admissions and universities</p>
-          </div>
-          <div className="p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
-            <p className="font-semibold text-foreground mb-1">Personalized</p>
-            <p className="text-muted-foreground text-xs">Tailored recommendations based on your profile</p>
-          </div>
-          <div className="p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
-            <p className="font-semibold text-foreground mb-1">Always Available</p>
-            <p className="text-muted-foreground text-xs">24/7 support for all your admission questions</p>
-          </div>
-        </motion.div>
+          {error && (
+            <p className="chat-error">
+              Something went wrong. Please try again.
+            </p>
+          )}
+          <p className="chat-disclaimer">
+            UAT AI can make mistakes. Always verify with the university directly.
+          </p>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

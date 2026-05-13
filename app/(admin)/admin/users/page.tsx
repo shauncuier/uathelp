@@ -3,20 +3,20 @@
 import { useState, useEffect } from "react";
 import { Users, ShieldCheck, Mail, Lock, Unlock, Trash2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { queryDocuments, updateDocument } from "@/lib/firebase/database";
+import { orderBy } from "firebase/firestore";
 
 interface User {
   id: string;
-  full_name: string;
+  displayName: string;
   email: string;
   role: "student" | "moderator" | "admin" | "super_admin";
-  is_blocked: boolean;
-  is_verified: boolean;
-  created_at: string;
+  isBlocked: boolean;
+  isVerified: boolean;
+  createdAt: string;
 }
 
 export default function AdminUsersPage() {
-  const supabase = createClient();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,13 +28,10 @@ export default function AdminUsersPage() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setUsers(data || []);
+      const data = await queryDocuments("profiles", [
+        orderBy("createdAt", "desc"),
+      ]);
+      setUsers(data as unknown as User[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
@@ -44,12 +41,7 @@ export default function AdminUsersPage() {
 
   const toggleBlockUser = async (userId: string, currentBlock: boolean) => {
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_blocked: !currentBlock })
-        .eq("id", userId);
-
-      if (error) throw error;
+      await updateDocument("profiles", userId, { isBlocked: !currentBlock });
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update user");
@@ -58,12 +50,7 @@ export default function AdminUsersPage() {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ role: newRole })
-        .eq("id", userId);
-
-      if (error) throw error;
+      await updateDocument("profiles", userId, { role: newRole });
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update role");
@@ -119,9 +106,9 @@ export default function AdminUsersPage() {
                 {users.map((user) => (
                   <tr key={user.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-medium">{user.full_name}</p>
+                      <p className="font-medium">{user.displayName}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
                       </p>
                     </td>
                     <td className="px-6 py-4">
@@ -141,7 +128,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-xs">
-                        {user.is_verified ? (
+                        {user.isVerified ? (
                           <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                             <CheckCircle className="size-3.5" />
                             Verified
@@ -149,7 +136,7 @@ export default function AdminUsersPage() {
                         ) : (
                           <div className="text-yellow-600 dark:text-yellow-400">Unverified</div>
                         )}
-                        {user.is_blocked && (
+                        {user.isBlocked && (
                           <div className="flex items-center gap-1 text-destructive">
                             <Lock className="size-3.5" />
                             Blocked
@@ -162,10 +149,10 @@ export default function AdminUsersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => toggleBlockUser(user.id, user.is_blocked)}
-                          title={user.is_blocked ? "Unblock user" : "Block user"}
+                          onClick={() => toggleBlockUser(user.id, user.isBlocked)}
+                          title={user.isBlocked ? "Unblock user" : "Block user"}
                         >
-                          {user.is_blocked ? (
+                          {user.isBlocked ? (
                             <Unlock className="size-4 text-green-600" />
                           ) : (
                             <Lock className="size-4 text-orange-600" />

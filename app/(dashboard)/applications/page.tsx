@@ -21,7 +21,7 @@ export default function ApplicationsPage() {
           </div>
           <div>
             <h2 className="font-semibold">Applications at a glance</h2>
-            <p className="text-sm text-muted-foreground">A future Supabase table can back this timeline with real submissions and reminders.</p>
+            <p className="text-sm text-muted-foreground">A future Firestore collection can back this timeline with real submissions and reminders.</p>
           </div>
         </div>
 

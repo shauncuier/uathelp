@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/auth/guard';
+import { verifyFirebaseToken } from '@/lib/firebase/admin';
+import { queryDocuments, addDocument, deleteDocument, getDocumentsByField } from '@/lib/firebase/database';
+import { where } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase/admin';
 
 /**
  * GET /api/bookmarks
@@ -8,31 +11,28 @@ import { withAuth } from '@/lib/auth/guard';
  */
 async function handleGet(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const decodedToken = await verifyFirebaseToken(request);
+    if (!decodedToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if saved_universities table exists, if not use fallback
-    const { data: bookmarks, error } = await supabase
-      .from('saved_universities')
-      .select('university_id, universities(*), created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const userId = decodedToken.uid;
 
-    if (error) {
-      return NextResponse.json(
-        { error: 'Failed to fetch bookmarks', details: error.message },
-        { status: 400 }
-      );
-    }
+    // Query saved_universities for this user from Firestore Admin
+    const snapshot = await adminDb
+      .collection('savedUniversities')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    return NextResponse.json({ data: bookmarks || [] });
+    const bookmarks = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return NextResponse.json({ data: bookmarks });
   } catch (error) {
+    console.error('Error fetching bookmarks:', error);
     return NextResponse.json(
       { error: 'Failed to fetch bookmarks' },
       { status: 500 }
@@ -47,15 +47,13 @@ async function handleGet(request: NextRequest) {
 async function handlePost(request: NextRequest) {
   try {
     const { universityId } = await request.json();
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!decodedToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const userId = decodedToken.uid;
 
     if (!universityId) {
       return NextResponse.json(
@@ -65,14 +63,14 @@ async function handlePost(request: NextRequest) {
     }
 
     // Check if already bookmarked
-    const { data: existing } = await supabase
-      .from('saved_universities')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('university_id', universityId)
-      .single();
+    const existingSnapshot = await adminDb
+      .collection('savedUniversities')
+      .where('userId', '==', userId)
+      .where('universityId', '==', universityId)
+      .limit(1)
+      .get();
 
-    if (existing) {
+    if (!existingSnapshot.empty) {
       return NextResponse.json(
         { error: 'University already bookmarked' },
         { status: 409 }
@@ -80,21 +78,19 @@ async function handlePost(request: NextRequest) {
     }
 
     // Add bookmark
-    const { data: bookmark, error } = await supabase
-      .from('saved_universities')
-      .insert({
-        user_id: user.id,
-        university_id: universityId,
-      })
-      .select()
-      .single();
+    const now = new Date().toISOString();
+    const docRef = await adminDb.collection('savedUniversities').add({
+      userId,
+      universityId,
+      createdAt: now,
+    });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    return NextResponse.json({ data: bookmark }, { status: 201 });
+    return NextResponse.json(
+      { data: { id: docRef.id, userId, universityId, createdAt: now } },
+      { status: 201 }
+    );
   } catch (error) {
+    console.error('Error saving bookmark:', error);
     return NextResponse.json(
       { error: 'Failed to save bookmark' },
       { status: 500 }
@@ -103,35 +99,50 @@ async function handlePost(request: NextRequest) {
 }
 
 /**
- * DELETE /api/bookmarks/[universityId]
- * Remove a university from bookmarks
+ * DELETE /api/bookmarks
+ * Remove a university from bookmarks (universityId in query params)
  */
-async function handleDelete(request: NextRequest, context: any) {
+async function handleDelete(request: NextRequest) {
   try {
-    const { universityId } = context.params;
-    const supabase = await createClient();
+    const { searchParams } = new URL(request.url);
+    const universityId = searchParams.get('universityId');
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!decodedToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Remove bookmark
-    const { error } = await supabase
-      .from('saved_universities')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('university_id', universityId);
+    const userId = decodedToken.uid;
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!universityId) {
+      return NextResponse.json(
+        { error: 'University ID is required' },
+        { status: 400 }
+      );
     }
+
+    // Find and delete the bookmark
+    const snapshot = await adminDb
+      .collection('savedUniversities')
+      .where('userId', '==', userId)
+      .where('universityId', '==', universityId)
+      .get();
+
+    if (snapshot.empty) {
+      return NextResponse.json(
+        { error: 'Bookmark not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete all matching docs (should be only one)
+    const batch = adminDb.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error removing bookmark:', error);
     return NextResponse.json(
       { error: 'Failed to remove bookmark' },
       { status: 500 }

@@ -1,4 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+/**
+ * Seed Test Users Script for UAT Help (Firebase)
+ * 
+ * This script demonstrates how to create test users in Firebase.
+ * Run with: npx ts-node scripts/seed-test-users.ts
+ */
 
 const testUsers = [
   {
@@ -39,8 +44,7 @@ async function seedTestUsers() {
   for (const user of testUsers) {
     try {
       console.log(`Creating user: ${user.email}`);
-
-      // This is a conceptual example - actual implementation would use Supabase Auth
+      // This is a conceptual example - actual implementation would use Firebase Admin SDK
       console.log(`  ✅ User created successfully`);
       console.log(`     Email: ${user.email}`);
       console.log(`     Password: ${user.password}`);

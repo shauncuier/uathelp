@@ -1,7 +1,7 @@
 /**
  * Test Data Setup Script for UAT Help
  * 
- * This script demonstrates how to create test users and data in Supabase.
+ * This script demonstrates how to create test users and data in Firebase.
  * Run with: npx ts-node lib/scripts/setup-test-data.ts
  */
 

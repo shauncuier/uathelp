@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PremiumChatbot } from "@/components/chat/premium-chatbot";
+import { ChatPageClient } from "./chat-client";
 
 export const metadata: Metadata = {
   title: "AI Chat | UAT Help",
@@ -7,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ChatPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <PremiumChatbot />
-    </div>
-  );
+  return <ChatPageClient />;
 }

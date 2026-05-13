@@ -1,138 +1,85 @@
 /**
- * Seed Test Users
- * 
- * This script creates dummy users in Supabase for testing purposes.
- * These users will have actual auth accounts you can login with.
- * 
+ * Seed Users Script for UAT Help (Firebase)
+ *
+ * This script creates dummy users in Firebase for testing purposes.
+ *
+ * Prerequisites:
+ *   - GOOGLE_APPLICATION_CREDENTIALS env var pointing to a service account key
+ *   - firebase-admin installed
+ *
  * Usage:
  *   npx ts-node scripts/seed-users.ts
- * 
- * Or run SQL directly in Supabase:
- *   1. Go to Supabase Dashboard
- *   2. SQL Editor
- *   3. Copy the SQL from scripts/seed-users.sql
- *   4. Execute
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-interface TestUser {
-  email: string;
-  password: string;
-  name: string;
-  role: "student" | "moderator" | "admin" | "super_admin";
+// Initialize Firebase Admin
+if (getApps().length === 0) {
+  initializeApp({
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'uat-help',
+  });
 }
 
-const testUsers: TestUser[] = [
-  {
-    email: "student1@test.uathelp.com",
-    password: "TestPass123!@#",
-    name: "Ahmed Student",
-    role: "student",
-  },
-  {
-    email: "student2@test.uathelp.com",
-    password: "TestPass123!@#",
-    name: "Fatima Student",
-    role: "student",
-  },
-  {
-    email: "moderator@test.uathelp.com",
-    password: "TestPass123!@#",
-    name: "Mowgli Moderator",
-    role: "moderator",
-  },
-  {
-    email: "admin@test.uathelp.com",
-    password: "TestPass123!@#",
-    name: "Admin User",
-    role: "admin",
-  },
-  {
-    email: "superadmin@test.uathelp.com",
-    password: "TestPass123!@#",
-    name: "Super Admin",
-    role: "super_admin",
-  },
+const auth = getAuth();
+const db = getFirestore();
+
+const users = [
+  { email: "student1@test.com", password: "TestPass123!", fullName: "Rafiq Ahmed", role: "student" },
+  { email: "student2@test.com", password: "TestPass123!", fullName: "Fatima Khan", role: "student" },
+  { email: "student3@test.com", password: "TestPass123!", fullName: "Ali Hassan", role: "student" },
+  { email: "admin@test.com", password: "AdminPass123!", fullName: "Admin User", role: "admin" },
+  { email: "moderator@test.com", password: "ModPass123!", fullName: "Moderator User", role: "moderator" },
 ];
 
 async function seedUsers() {
-  console.log("🌱 Starting user seeding...\n");
+  console.log("🌱 Seeding users into Firebase...\n");
 
-  try {
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    for (const user of testUsers) {
-      console.log(`Creating user: ${user.email} (${user.role})...`);
-
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: user.email,
-        password: user.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: user.name,
-        },
-      });
-
-      if (authError) {
-        if (authError.message.includes("already exists")) {
-          console.log(`  ⚠️  User already exists, updating profile...\n`);
-          
-          // Get existing user
-          const { data: existingUser } = await supabase.auth.admin.listUsers();
-          const userId = existingUser?.users.find(u => u.email === user.email)?.id;
-          
-          if (userId) {
-            await supabase.from("profiles").upsert({
-              id: userId,
-              email: user.email,
-              full_name: user.name,
-              role: user.role,
-              is_verified: true,
-              is_blocked: false,
-            });
-          }
-        } else {
-          console.error(`  ❌ Error creating user: ${authError.message}\n`);
-          continue;
-        }
-      } else if (authData?.user) {
-        // Create profile
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: authData.user.id,
+  for (const user of users) {
+    try {
+      // Create user in Firebase Auth
+      let uid: string;
+      try {
+        const userRecord = await auth.createUser({
           email: user.email,
-          full_name: user.name,
-          role: user.role,
-          is_verified: true,
-          is_blocked: false,
-          avatar_url: null,
+          password: user.password,
+          displayName: user.fullName,
+          emailVerified: true,
         });
-
-        if (profileError) {
-          console.error(`  ❌ Error creating profile: ${profileError.message}\n`);
+        uid = userRecord.uid;
+      } catch (error: any) {
+        if (error.code === 'auth/email-already-exists') {
+          const existingUser = await auth.getUserByEmail(user.email);
+          uid = existingUser.uid;
+          console.log(`  ⚠️  User ${user.email} already exists, updating profile...`);
         } else {
-          console.log(`  ✅ Created successfully\n`);
+          throw error;
         }
       }
-    }
 
-    console.log("✨ User seeding completed!\n");
-    console.log("📝 Test Credentials:");
-    console.log("─".repeat(50));
-    testUsers.forEach((user) => {
-      console.log(`Email:    ${user.email}`);
-      console.log(`Password: ${user.password}`);
-      console.log(`Role:     ${user.role}`);
-      console.log("─".repeat(50));
-    });
-  } catch (error) {
-    console.error("Fatal error:", error);
-    process.exit(1);
+      // Create/update profile in Firestore
+      await db.collection('profiles').doc(uid).set({
+        email: user.email,
+        displayName: user.fullName,
+        role: user.role,
+        isVerified: true,
+        isBlocked: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      console.log(`  ✅ ${user.fullName} (${user.email}) - Role: ${user.role}`);
+    } catch (error) {
+      console.error(`  ❌ Error creating ${user.email}:`, error);
+    }
   }
+
+  console.log("\n✨ Seeding complete!");
+  process.exit(0);
 }
 
-seedUsers();
+seedUsers().catch((error) => {
+  console.error("Fatal error:", error);
+  process.exit(1);
+});

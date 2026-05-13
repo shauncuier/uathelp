@@ -3,7 +3,7 @@ import { createUIMessageStream, createUIMessageStreamResponse, convertToModelMes
 import { universities } from '@/config/universities';
 import { extractAssistantText, getCachedAnswer, getLatestUserText, saveCachedAnswer } from '@/lib/chat-cache';
 import { saveConversationTurn } from '@/lib/chat-history';
-import { createClient as createSupabaseClient } from '@/lib/supabase/server';
+import { verifyFirebaseToken } from '@/lib/firebase/admin';
 
 export const maxDuration = 30;
 
@@ -60,9 +60,15 @@ function buildFallbackReply(messages: UIMessage[]) {
 export async function POST(req: Request) {
   const { conversationId, messages, timestamp }: { conversationId?: string; messages: UIMessage[]; timestamp?: string } = await req.json();
   const latestQuestion = getLatestUserText(messages);
-  const supabase = await createSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id ?? null;
+
+  // Get user from Firebase token (optional — chat works for guests too)
+  let userId: string | null = null;
+  try {
+    const decodedToken = await verifyFirebaseToken(req);
+    userId = decodedToken?.uid ?? null;
+  } catch {
+    // Guest user — no auth required for chat
+  }
 
   const now = new Date(timestamp || new Date());
   const currentDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });

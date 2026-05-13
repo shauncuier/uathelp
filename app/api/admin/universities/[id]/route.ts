@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { verifyFirebaseToken, adminDb, checkAdminRoleFromAdmin } from "@/lib/firebase/admin";
 
 // Validation schema for university updates
 const UniversitySchema = z.object({
@@ -21,18 +21,6 @@ const UniversitySchema = z.object({
   admissionDeadline: z.string().optional(),
 });
 
-// Helper to check admin role
-async function checkAdminRole(userId: string): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-
-  return profile?.role === "admin" || profile?.role === "moderator";
-}
-
 // PATCH /api/admin/universities/[id] - Update a university
 export async function PATCH(
   request: NextRequest,
@@ -40,13 +28,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user || !(await checkAdminRole(user.id))) {
+    if (!decodedToken || !(await checkAdminRoleFromAdmin(decodedToken.uid))) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -56,26 +40,24 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = UniversitySchema.parse(body);
 
-    const { data, error } = await supabase
-      .from("universities")
-      .update({
-        ...validatedData,
-        updatedAt: new Date(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
+    const docRef = adminDb.collection("universities").doc(id);
+    const docSnap = await docRef.get();
 
-    if (error) throw error;
-
-    if (!data) {
+    if (!docSnap.exists) {
       return NextResponse.json(
         { error: "University not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(data);
+    await docRef.update({
+      ...validatedData,
+      updatedAt: new Date().toISOString(),
+    });
+
+    const updatedDoc = await docRef.get();
+
+    return NextResponse.json({ id: updatedDoc.id, ...updatedDoc.data() });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -99,25 +81,26 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const decodedToken = await verifyFirebaseToken(request);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user || !(await checkAdminRole(user.id))) {
+    if (!decodedToken || !(await checkAdminRoleFromAdmin(decodedToken.uid))) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const { error } = await supabase
-      .from("universities")
-      .delete()
-      .eq("id", id);
+    const docRef = adminDb.collection("universities").doc(id);
+    const docSnap = await docRef.get();
 
-    if (error) throw error;
+    if (!docSnap.exists) {
+      return NextResponse.json(
+        { error: "University not found" },
+        { status: 404 }
+      );
+    }
+
+    await docRef.delete();
 
     return NextResponse.json({ success: true });
   } catch (error) {

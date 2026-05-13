@@ -1,5 +1,58 @@
-import { createClient } from '@/lib/supabase/server';
+import { getDocument, queryDocuments, getDocumentsByField } from '@/lib/firebase/database';
+import { where } from 'firebase/firestore';
 import { createAuthorizationError, createAuthenticationError, createInternalError } from '@/lib/errors';
+
+/**
+ * Hardcoded permission map by role (mirrors roles.ts)
+ */
+const permissionsByRole: Record<string, Record<string, boolean>> = {
+  student: {
+    can_create_post: false,
+    can_edit_post: false,
+    can_delete_post: false,
+    can_moderate_comments: false,
+    can_manage_users: false,
+    can_manage_universities: false,
+    can_access_analytics: false,
+  },
+  moderator: {
+    can_create_post: true,
+    can_edit_post: true,
+    can_delete_post: false,
+    can_moderate_comments: true,
+    can_manage_users: false,
+    can_manage_universities: true,
+    can_access_analytics: true,
+  },
+  admin: {
+    can_create_post: true,
+    can_edit_post: true,
+    can_delete_post: true,
+    can_moderate_comments: true,
+    can_manage_users: true,
+    can_manage_universities: true,
+    can_access_analytics: true,
+  },
+  super_admin: {
+    can_create_post: true,
+    can_edit_post: true,
+    can_delete_post: true,
+    can_moderate_comments: true,
+    can_manage_users: true,
+    can_manage_universities: true,
+    can_access_analytics: true,
+  },
+};
+
+/**
+ * Daily chat query limits by role
+ */
+const queryLimitsByRole: Record<string, number> = {
+  student: 20,
+  moderator: 100,
+  admin: 500,
+  super_admin: 1000,
+};
 
 /**
  * Verify user owns a resource
@@ -10,21 +63,19 @@ export async function verifyOwnership(
   resourceId: string
 ): Promise<boolean> {
   try {
-    const supabase = await createClient();
+    const collectionMap: Record<string, string> = {
+      blog_post: 'blogPosts',
+      conversation: 'conversations',
+      university: 'universities',
+    };
 
-    let query = supabase
-      .from(`${resourceType}s`)
-      .select('id')
-      .eq('id', resourceId);
+    const collectionName = collectionMap[resourceType];
+    const doc = await getDocument(collectionName, resourceId);
+
+    if (!doc) return false;
 
     if (resourceType === 'blog_post' || resourceType === 'conversation') {
-      query = query.eq('author_id', userId);
-    }
-
-    const { data, error } = await query.single();
-
-    if (error || !data) {
-      return false;
+      return doc.authorId === userId || doc.author_id === userId;
     }
 
     return true;
@@ -42,29 +93,14 @@ export async function verifyPermission(
   permission: string
 ): Promise<boolean> {
   try {
-    const supabase = await createClient();
+    const profile = await getDocument('profiles', userId);
+    if (!profile) return false;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
+    const role = profile.role as string;
+    const rolePerms = permissionsByRole[role];
+    if (!rolePerms) return false;
 
-    if (!profile) {
-      return false;
-    }
-
-    const { data: rolePerms } = await supabase
-      .from('role_permissions')
-      .select(permission)
-      .eq('role', profile.role)
-      .single();
-
-    if (!rolePerms) {
-      return false;
-    }
-
-    return Boolean((rolePerms as any)[permission]);
+    return Boolean(rolePerms[permission]);
   } catch (error) {
     console.error('Permission verification error:', error);
     return false;
@@ -76,14 +112,7 @@ export async function verifyPermission(
  */
 export async function isAdmin(userId: string): Promise<boolean> {
   try {
-    const supabase = await createClient();
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
+    const profile = await getDocument('profiles', userId);
     return profile?.role === 'admin' || profile?.role === 'super_admin';
   } catch (error) {
     console.error('Admin check error:', error);
@@ -96,14 +125,7 @@ export async function isAdmin(userId: string): Promise<boolean> {
  */
 export async function isModerator(userId: string): Promise<boolean> {
   try {
-    const supabase = await createClient();
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
+    const profile = await getDocument('profiles', userId);
     const role = profile?.role;
     return role === 'moderator' || role === 'admin' || role === 'super_admin';
   } catch (error) {
@@ -117,15 +139,8 @@ export async function isModerator(userId: string): Promise<boolean> {
  */
 export async function isUserBlocked(userId: string): Promise<boolean> {
   try {
-    const supabase = await createClient();
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_blocked')
-      .eq('id', userId)
-      .single();
-
-    return profile?.is_blocked || false;
+    const profile = await getDocument('profiles', userId);
+    return profile?.isBlocked || profile?.is_blocked || false;
   } catch (error) {
     console.error('Block status check error:', error);
     return false;
@@ -137,22 +152,16 @@ export async function isUserBlocked(userId: string): Promise<boolean> {
  */
 export async function getDailyQueryCount(userId: string): Promise<number> {
   try {
-    const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
+    const startOfDay = `${today}T00:00:00.000Z`;
 
-    const { count, error } = await supabase
-      .from('conversations')
-      .select('id', { count: 'exact' })
-      .eq('user_id', userId)
-      .gte('created_at', `${today}T00:00:00.000Z`)
-      .lt('created_at', `${today}T23:59:59.999Z`);
+    // Query conversations for this user today
+    const conversations = await queryDocuments('conversations', [
+      where('userId', '==', userId),
+      where('createdAt', '>=', startOfDay),
+    ]);
 
-    if (error) {
-      console.error('Query count error:', error);
-      return 0;
-    }
-
-    return count || 0;
+    return conversations.length;
   } catch (error) {
     console.error('Daily query count error:', error);
     return 0;
@@ -164,25 +173,10 @@ export async function getDailyQueryCount(userId: string): Promise<number> {
  */
 export async function getDailyQueryLimit(userId: string): Promise<number> {
   try {
-    const supabase = await createClient();
+    const profile = await getDocument('profiles', userId);
+    if (!profile) return 0;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
-    if (!profile) {
-      return 0;
-    }
-
-    const { data: rolePerms } = await supabase
-      .from('role_permissions')
-      .select('max_daily_chat_queries')
-      .eq('role', profile.role)
-      .single();
-
-    return rolePerms?.max_daily_chat_queries || 0;
+    return queryLimitsByRole[profile.role as string] || 0;
   } catch (error) {
     console.error('Query limit error:', error);
     return 0;

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@/lib/supabase/middleware';
+import { verifyFirebaseToken, getProfileFromAdmin } from '@/lib/firebase/admin';
 
 export type RouteProtection = {
   requireAuth?: boolean;
@@ -8,20 +8,18 @@ export type RouteProtection = {
 };
 
 /**
- * Higher-order function to protect routes with auth and role checks
+ * Higher-order function to protect routes with auth and role checks.
+ * Uses Firebase Admin SDK to verify ID tokens from Authorization header.
  */
 export function withAuth(
   handler: (req: NextRequest, context: any) => Promise<NextResponse>,
   protection: RouteProtection = { requireAuth: true }
 ) {
   return async (req: NextRequest, context: any) => {
-    const response = NextResponse.next({ request: req });
-    const supabase = createMiddlewareClient(req, response);
-
-    const { data: { user } } = await supabase.auth.getUser();
+    const decodedToken = await verifyFirebaseToken(req);
 
     // Check authentication
-    if (protection.requireAuth && !user) {
+    if (protection.requireAuth && !decodedToken) {
       return NextResponse.json(
         { error: 'Unauthorized: Please sign in' },
         { status: 401 }
@@ -29,12 +27,8 @@ export function withAuth(
     }
 
     // Check role if required
-    if (protection.requireRole && user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, is_blocked')
-        .eq('id', user.id)
-        .single();
+    if (protection.requireRole && decodedToken) {
+      const profile = await getProfileFromAdmin(decodedToken.uid);
 
       if (!profile) {
         return NextResponse.json(
@@ -43,7 +37,7 @@ export function withAuth(
         );
       }
 
-      if (profile.is_blocked) {
+      if (profile.isBlocked || profile.is_blocked) {
         return NextResponse.json(
           { error: 'Account has been blocked' },
           { status: 403 }
@@ -73,32 +67,26 @@ export function withAuth(
 }
 
 /**
- * Middleware to check auth on page routes
+ * Check auth on page routes (server-side)
  */
 export async function checkRouteAuth(
   request: NextRequest,
-  response: NextResponse,
+  _response: NextResponse,
   requiredRole?: string
 ): Promise<{ authorized: boolean; user?: any; profile?: any }> {
-  const supabase = createMiddlewareClient(request, response);
+  const decodedToken = await verifyFirebaseToken(request);
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!decodedToken) {
     return { authorized: false };
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const profile = await getProfileFromAdmin(decodedToken.uid);
 
   if (!profile) {
     return { authorized: false };
   }
 
-  if (profile.is_blocked) {
+  if (profile.isBlocked || profile.is_blocked) {
     return { authorized: false };
   }
 
@@ -110,7 +98,7 @@ export async function checkRouteAuth(
       super_admin: 4,
     };
 
-    const userLevel = roleHierarchy[profile.role] || 0;
+    const userLevel = roleHierarchy[profile.role as string] || 0;
     const requiredLevel = roleHierarchy[requiredRole] || 0;
 
     if (userLevel < requiredLevel) {
@@ -118,5 +106,5 @@ export async function checkRouteAuth(
     }
   }
 
-  return { authorized: true, user, profile };
+  return { authorized: true, user: decodedToken, profile };
 }

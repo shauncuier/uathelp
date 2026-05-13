@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { logOut } from "@/lib/firebase/auth";
 
 const navItems = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -21,11 +21,10 @@ const navItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logOut();
     router.push("/login");
   };
 

@@ -1,27 +1,17 @@
-import { Pool } from "pg";
-import type { UIMessage } from "ai";
-
-let pool: Pool | null = null;
-
-function getPool() {
-  if (!process.env.DATABASE_URL) return null;
-
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-  }
-
-  return pool;
-}
+import { adminDb } from '@/lib/firebase/admin';
+import type { UIMessage } from 'ai';
 
 function messageText(message: UIMessage) {
   return message.parts
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join("")
+    .map((part) => (part.type === 'text' ? part.text : ''))
+    .join('')
     .trim();
 }
 
+/**
+ * Save a conversation turn (user question + assistant response) to Firestore.
+ * Creates/updates the conversation document and adds message sub-documents.
+ */
 export async function saveConversationTurn(options: {
   conversationId: string;
   userId: string;
@@ -29,41 +19,50 @@ export async function saveConversationTurn(options: {
   response: string;
   model: string | null;
 }) {
-  const db = getPool();
-  if (!db) return;
+  try {
+    const now = new Date().toISOString();
+    const title = options.question.slice(0, 64) || 'New conversation';
 
-  const title = options.question.slice(0, 64) || "New conversation";
+    const conversationRef = adminDb.collection('conversations').doc(options.conversationId);
+    const conversationDoc = await conversationRef.get();
 
-  await db.query(
-    `
-      INSERT INTO conversations (id, user_id, title, model, updated_at)
-      VALUES ($1, $2, $3, $4, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        title = CASE
-          WHEN conversations.title = 'New conversation' THEN EXCLUDED.title
-          ELSE conversations.title
-        END,
-        model = COALESCE(EXCLUDED.model, conversations.model),
-        updated_at = NOW()
-    `,
-    [options.conversationId, options.userId, title, options.model]
-  );
+    if (conversationDoc.exists) {
+      // Update existing conversation
+      const existingData = conversationDoc.data();
+      await conversationRef.update({
+        title: existingData?.title === 'New conversation' ? title : existingData?.title,
+        model: options.model || existingData?.model || null,
+        updatedAt: now,
+      });
+    } else {
+      // Create new conversation
+      await conversationRef.set({
+        userId: options.userId,
+        title,
+        model: options.model,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
 
-  await db.query(
-    `
-      INSERT INTO conversation_messages (conversation_id, role, content, parts)
-      VALUES
-        ($1, 'user', $2, $3),
-        ($1, 'assistant', $4, $5)
-    `,
-    [
-      options.conversationId,
-      options.question,
-      JSON.stringify([{ type: "text", text: options.question }]),
-      options.response,
-      JSON.stringify([{ type: "text", text: options.response }]),
-    ]
-  );
+    // Add user message
+    await conversationRef.collection('messages').add({
+      role: 'user',
+      content: options.question,
+      parts: JSON.stringify([{ type: 'text', text: options.question }]),
+      createdAt: now,
+    });
+
+    // Add assistant message
+    await conversationRef.collection('messages').add({
+      role: 'assistant',
+      content: options.response,
+      parts: JSON.stringify([{ type: 'text', text: options.response }]),
+      createdAt: now,
+    });
+  } catch (error) {
+    console.error('Failed to save conversation turn:', error);
+  }
 }
 
 export function getMessagePlainText(message: UIMessage) {

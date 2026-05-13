@@ -1,7 +1,7 @@
-import { Pool } from "pg";
-import type { UIMessage } from "ai";
+import { adminDb } from '@/lib/firebase/admin';
+import type { UIMessage } from 'ai';
 
-type CacheSource = "model" | "fallback";
+type CacheSource = 'model' | 'fallback';
 
 type CachedAnswer = {
   answer_markdown: string;
@@ -10,149 +10,121 @@ type CachedAnswer = {
   hit_count: number;
 };
 
-let pool: Pool | null = null;
-let schemaReady: Promise<void> | null = null;
-
-function getPool() {
-  if (!process.env.DATABASE_URL) return null;
-
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-  }
-
-  return pool;
-}
-
 function normalizeQuestion(question: string) {
   return question
     .toLowerCase()
-    .replace(/[?.!]+$/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/[?.!]+$/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 export function getLatestUserText(messages: UIMessage[]) {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
-    if (message.role !== "user") continue;
+    if (message.role !== 'user') continue;
 
     return message.parts
-      .map((part) => (part.type === "text" ? part.text : ""))
-      .join(" ")
+      .map((part) => (part.type === 'text' ? part.text : ''))
+      .join(' ')
       .trim();
   }
 
-  return "";
+  return '';
 }
 
-async function ensureSchema(poolInstance: Pool) {
-  if (!schemaReady) {
-    schemaReady = poolInstance.query(`
-      CREATE TABLE IF NOT EXISTS chat_question_cache (
-        id BIGSERIAL PRIMARY KEY,
-        normalized_question TEXT UNIQUE NOT NULL,
-        question TEXT NOT NULL,
-        answer_markdown TEXT NOT NULL,
-        answer_source TEXT NOT NULL DEFAULT 'model',
-        model TEXT,
-        hit_count INTEGER NOT NULL DEFAULT 0,
-        last_used_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE INDEX IF NOT EXISTS chat_question_cache_last_used_at_idx
-        ON chat_question_cache (last_used_at DESC);
-    `).then(() => undefined);
-  }
-
-  return schemaReady;
-}
-
+/**
+ * Look up a cached answer by normalized question text.
+ * Uses Firestore `chatQuestionCache` collection.
+ */
 export async function getCachedAnswer(question: string): Promise<CachedAnswer | null> {
-  const db = getPool();
-  if (!db) return null;
+  try {
+    const normalizedQuestion = normalizeQuestion(question);
+    if (!normalizedQuestion) return null;
 
-  await ensureSchema(db);
+    const snapshot = await adminDb
+      .collection('chatQuestionCache')
+      .where('normalizedQuestion', '==', normalizedQuestion)
+      .limit(1)
+      .get();
 
-  const normalizedQuestion = normalizeQuestion(question);
-  if (!normalizedQuestion) return null;
+    if (snapshot.empty) return null;
 
-  const { rows } = await db.query<CachedAnswer>(
-    `
-      SELECT answer_markdown, answer_source, model, hit_count
-      FROM chat_question_cache
-      WHERE normalized_question = $1
-      LIMIT 1
-    `,
-    [normalizedQuestion]
-  );
+    const doc = snapshot.docs[0];
+    const data = doc.data();
 
-  const cached = rows[0];
-  if (!cached) return null;
+    // Increment hit count
+    await doc.ref.update({
+      hitCount: (data.hitCount || 0) + 1,
+      lastUsedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
 
-  await db.query(
-    `
-      UPDATE chat_question_cache
-      SET hit_count = hit_count + 1,
-          last_used_at = NOW(),
-          updated_at = NOW()
-      WHERE normalized_question = $1
-    `,
-    [normalizedQuestion]
-  );
-
-  return cached;
+    return {
+      answer_markdown: data.answerMarkdown,
+      answer_source: data.answerSource as CacheSource,
+      model: data.model || null,
+      hit_count: (data.hitCount || 0) + 1,
+    };
+  } catch (error) {
+    console.error('Chat cache lookup error:', error);
+    return null;
+  }
 }
 
+/**
+ * Save or update a cached answer in Firestore.
+ */
 export async function saveCachedAnswer(options: {
   question: string;
   answerMarkdown: string;
   answerSource: CacheSource;
   model?: string | null;
 }) {
-  const db = getPool();
-  if (!db) return;
+  try {
+    const normalizedQuestion = normalizeQuestion(options.question);
+    if (!normalizedQuestion) return;
 
-  await ensureSchema(db);
+    // Check if document already exists
+    const snapshot = await adminDb
+      .collection('chatQuestionCache')
+      .where('normalizedQuestion', '==', normalizedQuestion)
+      .limit(1)
+      .get();
 
-  const normalizedQuestion = normalizeQuestion(options.question);
-  if (!normalizedQuestion) return;
+    const now = new Date().toISOString();
 
-  await db.query(
-    `
-      INSERT INTO chat_question_cache (
-        normalized_question,
-        question,
-        answer_markdown,
-        answer_source,
-        model,
-        last_used_at
-      ) VALUES ($1, $2, $3, $4, $5, NOW())
-      ON CONFLICT (normalized_question)
-      DO UPDATE SET
-        question = EXCLUDED.question,
-        answer_markdown = EXCLUDED.answer_markdown,
-        answer_source = EXCLUDED.answer_source,
-        model = EXCLUDED.model,
-        last_used_at = NOW(),
-        updated_at = NOW()
-    `,
-    [
-      normalizedQuestion,
-      options.question.trim(),
-      options.answerMarkdown,
-      options.answerSource,
-      options.model ?? null,
-    ]
-  );
+    if (!snapshot.empty) {
+      // Update existing
+      await snapshot.docs[0].ref.update({
+        question: options.question.trim(),
+        answerMarkdown: options.answerMarkdown,
+        answerSource: options.answerSource,
+        model: options.model ?? null,
+        lastUsedAt: now,
+        updatedAt: now,
+      });
+    } else {
+      // Create new
+      await adminDb.collection('chatQuestionCache').add({
+        normalizedQuestion,
+        question: options.question.trim(),
+        answerMarkdown: options.answerMarkdown,
+        answerSource: options.answerSource,
+        model: options.model ?? null,
+        hitCount: 0,
+        lastUsedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  } catch (error) {
+    console.error('Chat cache save error:', error);
+  }
 }
 
 export function extractAssistantText(message: UIMessage) {
   return message.parts
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join("")
+    .map((part) => (part.type === 'text' ? part.text : ''))
+    .join('')
     .trim();
 }

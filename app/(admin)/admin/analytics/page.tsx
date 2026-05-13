@@ -34,7 +34,7 @@ export default function AdminAnalyticsPage() {
           </div>
           <div>
             <h2 className="font-semibold">Insights</h2>
-            <p className="text-sm text-muted-foreground">Connect this panel to Supabase analytics or event tables for live reporting.</p>
+            <p className="text-sm text-muted-foreground">Connect this panel to Firestore analytics or event collections for live reporting.</p>
           </div>
         </div>
       </div>

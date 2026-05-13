@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/client";
+import { updateUserProfile, logOut } from "@/lib/firebase/auth";
+import { updateDocument, setDocument } from "@/lib/firebase/database";
 import { cn } from "@/lib/utils";
 
 type SettingsProfile = {
@@ -57,7 +58,6 @@ export function SettingsForm({
   initialPreferences,
 }: SettingsFormProps) {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
   const { setTheme } = useTheme();
 
   const [fullName, setFullName] = useState(initialProfile.fullName);
@@ -81,64 +81,44 @@ export function SettingsForm({
 
     const normalizedName = fullName.trim();
     const normalizedAvatar = avatarUrl.trim();
-    const timestamp = new Date().toISOString();
 
-    const { error: authError } = await supabase.auth.updateUser({
-      data: {
-        full_name: normalizedName,
-        avatar_url: normalizedAvatar || null,
-      },
-    });
+    try {
+      // Update Firebase Auth profile
+      await updateUserProfile(normalizedName, normalizedAvatar || undefined);
 
-    if (authError) {
-      setError(authError.message);
+      // Update Firestore profile document
+      await updateDocument("profiles", userId, {
+        displayName: normalizedName,
+        photoURL: normalizedAvatar || null,
+      });
+
+      // Update Firestore preferences document
+      await setDocument("userPreferences", userId, {
+        userId,
+        emailNotifications,
+        deadlineReminders,
+        productUpdates,
+        weeklyDigest,
+        themePreference,
+      }, true);
+
+      setTheme(themePreference);
+      setMessage("Settings saved.");
+      router.refresh();
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to save settings");
+      }
+    } finally {
       setSaving(false);
-      return;
     }
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        full_name: normalizedName,
-        avatar_url: normalizedAvatar || null,
-        updated_at: timestamp,
-      })
-      .eq("id", userId);
-
-    if (profileError) {
-      setError(profileError.message);
-      setSaving(false);
-      return;
-    }
-
-    const { error: preferencesError } = await supabase.from("user_preferences").upsert(
-      {
-        user_id: userId,
-        email_notifications: emailNotifications,
-        deadline_reminders: deadlineReminders,
-        product_updates: productUpdates,
-        weekly_digest: weeklyDigest,
-        theme_preference: themePreference,
-        updated_at: timestamp,
-      },
-      { onConflict: "user_id" }
-    );
-
-    if (preferencesError) {
-      setError(preferencesError.message);
-      setSaving(false);
-      return;
-    }
-
-    setTheme(themePreference);
-    setMessage("Settings saved.");
-    setSaving(false);
-    router.refresh();
   };
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    await supabase.auth.signOut();
+    await logOut();
     router.push("/login");
     router.refresh();
   };
@@ -293,7 +273,7 @@ export function SettingsForm({
               </div>
               <div>
                 <h2 className="font-semibold">Security</h2>
-                <p className="text-sm text-muted-foreground">Your account is protected by Supabase sessions.</p>
+                <p className="text-sm text-muted-foreground">Your account is protected by Firebase Authentication.</p>
               </div>
             </div>
 

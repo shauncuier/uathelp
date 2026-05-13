@@ -4,7 +4,7 @@ import { universities } from "@/config/universities";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-// In a real application, this would fetch from Supabase
+// In a real application, this would fetch from Firestore
 async function getUniversities() {
   return universities.map((u) => ({
     id: u.id,
