@@ -144,12 +144,14 @@ export interface SiteSettings {
   description: string;
   logoUrl?: string;
   facebookUrl?: string;
+  youtubeUrl?: string;
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
   footerText?: string;
   seoTitle: string;
   seoDescription: string;
+  allowRegistration?: boolean;
   maintenanceMode: boolean;
   noticeBanner?: string;
   noticeBannerEnabled: boolean;

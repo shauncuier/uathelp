@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const body = await request.json();
   const parsed = updateNoticeSchema.safeParse(body);
   if (!parsed.success) {
-    return errorResponse(parsed.error.errors[0].message, "VALIDATION_ERROR", 400);
+    return errorResponse(parsed.error.issues[0].message, "VALIDATION_ERROR", 400);
   }
 
   const data = parsed.data;

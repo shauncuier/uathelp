@@ -1,8 +1,8 @@
 "use client";
 // src/components/admin/NoticeForm.tsx
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createNoticeSchema, CreateNoticeInput } from "@/lib/validations/notice";
+import { createNoticeSchema, CreateNoticeFormInput, CreateNoticeInput } from "@/lib/validations/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,16 +19,25 @@ interface NoticeFormProps {
   mode: "create" | "edit";
 }
 
+type UniversityOption = {
+  id: string;
+  nameEn: string;
+};
+
 const categories = ["admission", "result", "seat-plan", "routine", "job", "scholarship", "general"];
 const uniTypes = ["public", "private", "national", "medical", "engineering", "agriculture"];
 const statuses = ["draft", "published", "archived"];
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export function NoticeForm({ initialData, mode }: NoticeFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [universities, setUniversities] = useState<any[]>([]);
+  const [universities, setUniversities] = useState<UniversityOption[]>([]);
 
-  const form = useForm<CreateNoticeInput>({
+  const form = useForm<CreateNoticeFormInput, unknown, CreateNoticeInput>({
     resolver: zodResolver(createNoticeSchema),
     defaultValues: {
       title: "", summary: "", body: "", universityId: "", universityName: "",
@@ -69,14 +78,14 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
       if (!res.ok || !result.success) throw new Error(result.error || result.message || "Failed to save notice");
       toast.success(mode === "create" ? "Notice created!" : "Notice updated!");
       router.push("/admin/notices");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save notice");
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, "Failed to save notice"));
     } finally {
       setLoading(false);
     }
   };
 
-  const onError = (errors: any) => {
+  const onError = (errors: FieldErrors<CreateNoticeFormInput>) => {
     toast.error("Please fix the errors in the form before submitting.");
     console.log("Validation Errors:", errors);
   };
@@ -105,6 +114,7 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
         <div className="space-y-1.5">
           <Label>University</Label>
           <Select onValueChange={(v) => {
+            if (!v) return;
             const uni = universities.find((u) => u.id === v);
             form.setValue("universityId", v);
             if (uni) form.setValue("universityName", uni.nameEn);
@@ -122,14 +132,14 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
 
         <div className="space-y-1.5">
           <Label>Category *</Label>
-          <Select onValueChange={(v: any) => form.setValue("category", v)} defaultValue={initialData?.category || "admission"}>
+          <Select onValueChange={(v) => v && form.setValue("category", v as CreateNoticeFormInput["category"])} defaultValue={initialData?.category || "admission"}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label>University Type *</Label>
-          <Select onValueChange={(v: any) => form.setValue("universityType", v)} defaultValue={initialData?.universityType || "public"}>
+          <Select onValueChange={(v) => v && form.setValue("universityType", v as CreateNoticeFormInput["universityType"])} defaultValue={initialData?.universityType || "public"}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{uniTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
@@ -176,7 +186,7 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
 
         <div className="space-y-1.5">
           <Label>Status *</Label>
-          <Select onValueChange={(v: any) => form.setValue("status", v)} defaultValue={initialData?.status || "draft"}>
+          <Select onValueChange={(v) => v && form.setValue("status", v as CreateNoticeFormInput["status"])} defaultValue={initialData?.status || "draft"}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>

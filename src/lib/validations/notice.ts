@@ -40,5 +40,6 @@ export const createNoticeSchema = z.object({
 
 export const updateNoticeSchema = createNoticeSchema.partial();
 
+export type CreateNoticeFormInput = z.input<typeof createNoticeSchema>;
 export type CreateNoticeInput = z.infer<typeof createNoticeSchema>;
 export type UpdateNoticeInput = z.infer<typeof updateNoticeSchema>;

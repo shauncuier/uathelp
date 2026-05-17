@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const parsed = updateSettingsSchema.safeParse(body);
     if (!parsed.success) {
-      return errorResponse(parsed.error.errors[0].message, "VALIDATION_ERROR", 400);
+      return errorResponse(parsed.error.issues[0].message, "VALIDATION_ERROR", 400);
     }
 
     await adminDb.doc(SETTINGS_DOC).set(

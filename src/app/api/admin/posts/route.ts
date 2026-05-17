@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = createPostSchema.safeParse(body);
     if (!parsed.success) {
-      return errorResponse(parsed.error.errors[0].message, "VALIDATION_ERROR", 400);
+      return errorResponse(parsed.error.issues[0].message, "VALIDATION_ERROR", 400);
     }
 
     const data = parsed.data;

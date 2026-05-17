@@ -1,8 +1,8 @@
 "use client";
 // src/components/admin/PostForm.tsx
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createPostSchema, CreatePostInput } from "@/lib/validations/post";
+import { createPostSchema, CreatePostFormInput, CreatePostInput } from "@/lib/validations/post";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,11 +23,15 @@ interface PostFormProps {
 const categories = ["tips", "guide", "routine", "strategy", "subject-guide", "news"];
 const statuses = ["draft", "published", "archived"];
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export function PostForm({ initialData, mode }: PostFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const form = useForm<CreatePostInput>({
+  const form = useForm<CreatePostFormInput, unknown, CreatePostInput>({
     resolver: zodResolver(createPostSchema),
     defaultValues: {
       title: "", slug: "", excerpt: "", content: "",
@@ -58,14 +62,14 @@ export function PostForm({ initialData, mode }: PostFormProps) {
       if (!res.ok || !result.success) throw new Error(result.error || result.message || "Failed to save post");
       toast.success(mode === "create" ? "Post created!" : "Post updated!");
       router.push("/admin/posts");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save post");
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, "Failed to save post"));
     } finally {
       setLoading(false);
     }
   };
 
-  const onError = (errors: any) => {
+  const onError = (errors: FieldErrors<CreatePostFormInput>) => {
     toast.error("Please fix the errors in the form before submitting.");
     console.log("Validation Errors:", errors);
   };
@@ -109,7 +113,7 @@ export function PostForm({ initialData, mode }: PostFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Category *</Label>
-            <Select onValueChange={(v: any) => form.setValue("category", v)} defaultValue={initialData?.category || "tips"}>
+            <Select onValueChange={(v) => v && form.setValue("category", v as CreatePostFormInput["category"])} defaultValue={initialData?.category || "tips"}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
@@ -117,7 +121,7 @@ export function PostForm({ initialData, mode }: PostFormProps) {
           
           <div className="space-y-1.5">
             <Label>Status *</Label>
-            <Select onValueChange={(v: any) => form.setValue("status", v)} defaultValue={initialData?.status || "draft"}>
+            <Select onValueChange={(v) => v && form.setValue("status", v as CreatePostFormInput["status"])} defaultValue={initialData?.status || "draft"}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>

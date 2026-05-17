@@ -80,7 +80,7 @@ export default function NoticesPage() {
             className="pl-9"
           />
         </div>
-        <Select value={category} onValueChange={setCategory}>
+        <Select value={category} onValueChange={(value) => value && setCategory(value)}>
           <SelectTrigger className="w-full md:w-48">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
@@ -90,7 +90,7 @@ export default function NoticesPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={universityType} onValueChange={setUniversityType}>
+        <Select value={universityType} onValueChange={(value) => value && setUniversityType(value)}>
           <SelectTrigger className="w-full md:w-48">
             <SelectValue placeholder="University Type" />
           </SelectTrigger>
