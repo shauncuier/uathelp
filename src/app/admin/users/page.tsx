@@ -20,6 +20,7 @@ type AdminUser = {
 };
 
 type RoleFilter = UserRole | "all";
+type StatusFilter = UserStatus | "all";
 
 function toDate(val: unknown): Date | null {
   if (!val) return null;
@@ -37,17 +38,20 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<RoleFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
 
   const fetchUsers = useCallback(async () => {
+    setLoading(true);
     const token = await auth.currentUser?.getIdToken();
     const params = new URLSearchParams({ limit: "50" });
     if (search) params.set("search", search);
     if (role !== "all") params.set("role", role);
+    if (status !== "all") params.set("status", status);
     const res = await fetch(`/api/admin/users?${params}`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     setUsers(data.data?.users || []);
     setLoading(false);
-  }, [role, search]);
+  }, [role, search, status]);
 
   useEffect(() => { const t = setTimeout(fetchUsers, 300); return () => clearTimeout(t); }, [fetchUsers]);
 
@@ -129,6 +133,15 @@ export default function AdminUsersPage() {
             <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="editor">Editor</SelectItem>
             <SelectItem value="student">Student</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={status} onValueChange={(val) => val && setStatus(val as StatusFilter)}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="suspended">Suspended</SelectItem>
+            <SelectItem value="disabled">Disabled</SelectItem>
           </SelectContent>
         </Select>
       </div>
