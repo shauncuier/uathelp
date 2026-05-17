@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv";
 import path from "path";
+import type { UserRecord } from "firebase-admin/auth";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
@@ -8,8 +9,8 @@ async function syncAllUsers() {
     const { adminAuth, adminDb } = await import("../src/lib/firebase/admin");
     console.log("Fetching all users from Firebase Auth...");
     
-    let allUsers = [];
-    let pageToken;
+    let allUsers: UserRecord[] = [];
+    let pageToken: string | undefined;
     do {
       const result = await adminAuth.listUsers(1000, pageToken);
       allUsers = allUsers.concat(result.users);
