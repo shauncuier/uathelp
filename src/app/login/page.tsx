@@ -60,6 +60,13 @@ export default function LoginPage() {
     try {
       const cred = await loginWithGoogle();
       const token = await cred.user.getIdToken();
+      
+      // Sync Google user with our Firestore Database
+      await fetch("/api/auth/sync", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax`;
       toast.success("Login successful!");
       await handleRedirect(cred.user.uid);

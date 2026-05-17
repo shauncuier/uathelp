@@ -23,18 +23,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Increment viewCount
     doc.ref.update({ viewCount: FieldValue.increment(1) }).catch(() => {});
 
-    // Related posts same category
+    // Related posts same category without composite index
     const relatedSnap = await adminDb
       .collection("blogPosts")
       .where("category", "==", (post as any).category)
-      .where("status", "==", "published")
-      .orderBy("publishedAt", "desc")
-      .limit(4)
       .get();
 
     const related = relatedSnap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((p: any) => p.id !== doc.id)
+      .filter((p: any) => p.id !== doc.id && p.status === "published")
+      .sort((a: any, b: any) => {
+        const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
+        const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
+        return dateB - dateA;
+      })
       .slice(0, 3);
 
     return successResponse({ post, related });

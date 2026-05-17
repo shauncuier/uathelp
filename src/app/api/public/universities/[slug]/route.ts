@@ -18,16 +18,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const doc = snap.docs[0];
     const university = { id: doc.id, ...doc.data() };
 
-    // Get latest notices from this university
+    // Get notices from this university without requiring composite index
     const noticesSnap = await adminDb
       .collection("notices")
       .where("universityId", "==", doc.id)
-      .where("status", "==", "published")
-      .orderBy("publishedAt", "desc")
-      .limit(6)
       .get();
 
-    const notices = noticesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const notices = noticesSnap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((n: any) => n.status === "published")
+      .sort((a: any, b: any) => {
+        const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
+        const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
+        return dateB - dateA;
+      })
+      .slice(0, 6);
 
     return successResponse({ university, notices });
   } catch (err) {

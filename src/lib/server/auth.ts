@@ -3,13 +3,13 @@
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { errorResponse } from "./api-response";
 import { NextRequest } from "next/server";
-import { UserRole } from "@/types";
+import { UserRole, UserStatus } from "@/types";
 
 export interface VerifiedUser {
   uid: string;
   email: string;
   role: UserRole;
-  status: "active" | "disabled";
+  status: UserStatus;
 }
 
 export async function verifySessionUser(request: NextRequest): Promise<VerifiedUser | null> {
@@ -35,7 +35,7 @@ export async function getUserFromFirestore(uid: string): Promise<VerifiedUser | 
       uid,
       email: data.email,
       role: data.role as UserRole,
-      status: data.status as "active" | "disabled",
+      status: data.status as UserStatus,
     };
   } catch {
     return null;
@@ -47,8 +47,8 @@ export async function requireAdmin(request: NextRequest) {
   if (!user) {
     return { user: null, response: errorResponse("Unauthorized", "UNAUTHORIZED", 401) };
   }
-  if (user.status === "disabled") {
-    return { user: null, response: errorResponse("Account disabled", "ACCOUNT_DISABLED", 403) };
+  if (user.status !== "active") {
+    return { user: null, response: errorResponse(`Account ${user.status}`, "ACCOUNT_INACTIVE", 403) };
   }
   if (user.role !== "admin") {
     return { user: null, response: errorResponse("Admin access required", "FORBIDDEN", 403) };
@@ -61,8 +61,8 @@ export async function requireEditorOrAdmin(request: NextRequest) {
   if (!user) {
     return { user: null, response: errorResponse("Unauthorized", "UNAUTHORIZED", 401) };
   }
-  if (user.status === "disabled") {
-    return { user: null, response: errorResponse("Account disabled", "ACCOUNT_DISABLED", 403) };
+  if (user.status !== "active") {
+    return { user: null, response: errorResponse(`Account ${user.status}`, "ACCOUNT_INACTIVE", 403) };
   }
   if (user.role !== "admin" && user.role !== "editor") {
     return { user: null, response: errorResponse("Editor or Admin access required", "FORBIDDEN", 403) };
@@ -75,8 +75,8 @@ export async function requireActiveUser(request: NextRequest) {
   if (!user) {
     return { user: null, response: errorResponse("Unauthorized", "UNAUTHORIZED", 401) };
   }
-  if (user.status === "disabled") {
-    return { user: null, response: errorResponse("Account disabled", "ACCOUNT_DISABLED", 403) };
+  if (user.status !== "active") {
+    return { user: null, response: errorResponse(`Account ${user.status}`, "ACCOUNT_INACTIVE", 403) };
   }
   return { user, response: null };
 }

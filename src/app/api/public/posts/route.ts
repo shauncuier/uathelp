@@ -10,18 +10,25 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 50);
 
-    let query: any = adminDb
+    const snap = await adminDb
       .collection("blogPosts")
       .where("status", "==", "published")
-      .orderBy("publishedAt", "desc");
+      .get();
 
-    if (category) query = query.where("category", "==", category);
-    if (search) query = query.where("searchKeywords", "array-contains", search.toLowerCase());
+    let posts = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
-    const snap = await query.limit(limit).get();
-    const posts = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    if (category) posts = posts.filter(p => p.category === category);
+    if (search) posts = posts.filter(p => p.searchKeywords?.includes(search.toLowerCase()));
 
-    return successResponse({ posts, total: posts.length, hasMore: posts.length === limit });
+    posts.sort((a, b) => {
+      const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
+      const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    const paginatedPosts = posts.slice(0, limit);
+
+    return successResponse({ posts: paginatedPosts, total: posts.length, hasMore: posts.length > limit });
   } catch (err) {
     console.error(err);
     return errorResponse("Failed to fetch posts", "SERVER_ERROR");

@@ -1,6 +1,5 @@
-// src/components/layout/Footer.tsx
 import Link from "next/link";
-import { GraduationCap, Facebook, Mail, Phone } from "lucide-react";
+import { GraduationCap, Mail, Phone } from "lucide-react";
 
 export function Footer() {
   return (
@@ -25,7 +24,9 @@ export function Footer() {
                 className="text-slate-400 hover:text-blue-400 transition-colors"
                 aria-label="Facebook"
               >
-                <Facebook className="h-5 w-5" />
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+                </svg>
               </a>
               <a
                 href="mailto:contact@uathelp.com"
@@ -46,8 +47,6 @@ export function Footer() {
               {[
                 { href: "/notices", label: "Admission Notices" },
                 { href: "/universities", label: "Universities" },
-                { href: "/results", label: "Results" },
-                { href: "/admit-card", label: "Admit Cards" },
                 { href: "/tips", label: "Preparation Tips" },
                 { href: "/guides", label: "Guides" },
               ].map((link) => (

@@ -23,18 +23,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Increment viewCount atomically (fire and forget)
     doc.ref.update({ viewCount: FieldValue.increment(1) }).catch(() => {});
 
-    // Get related notices from same university
+    // Get related notices from same university without composite index
     const relatedSnap = await adminDb
       .collection("notices")
       .where("universityId", "==", (notice as any).universityId)
-      .where("status", "==", "published")
-      .orderBy("publishedAt", "desc")
-      .limit(4)
       .get();
 
     const related = relatedSnap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((n: any) => n.id !== doc.id)
+      .filter((n: any) => n.id !== doc.id && n.status === "published")
+      .sort((a: any, b: any) => {
+        const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
+        const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
+        return dateB - dateA;
+      })
       .slice(0, 3);
 
     return successResponse({ notice, related });

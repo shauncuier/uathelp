@@ -15,23 +15,34 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const limit = Math.min(parseInt(searchParams.get("limit") || "12"), 50);
 
-    let query: any = adminDb
+    // Fetch all published notices first to avoid composite index requirements
+    const snap = await adminDb
       .collection("notices")
       .where("status", "==", "published")
-      .orderBy("publishedAt", "desc");
+      .get();
 
-    if (category) query = query.where("category", "==", category);
-    if (universityId) query = query.where("universityId", "==", universityId);
-    if (universityType) query = query.where("universityType", "==", universityType);
-    if (session) query = query.where("session", "==", session);
-    if (urgent === "true") query = query.where("isUrgent", "==", true);
-    if (featured === "true") query = query.where("isFeatured", "==", true);
-    if (search) query = query.where("searchKeywords", "array-contains", search.toLowerCase());
+    let notices = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
-    const snap = await query.limit(limit).get();
-    const notices = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    // Apply filters in memory
+    if (category) notices = notices.filter(n => n.category === category);
+    if (universityId) notices = notices.filter(n => n.universityId === universityId);
+    if (universityType) notices = notices.filter(n => n.universityType === universityType);
+    if (session) notices = notices.filter(n => n.session === session);
+    if (urgent === "true") notices = notices.filter(n => n.isUrgent === true);
+    if (featured === "true") notices = notices.filter(n => n.isFeatured === true);
+    if (search) notices = notices.filter(n => n.searchKeywords?.includes(search.toLowerCase()));
 
-    return successResponse({ notices, total: notices.length, hasMore: notices.length === limit });
+    // Sort by publishedAt descending
+    notices.sort((a, b) => {
+      const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
+      const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    // Apply limits
+    const paginatedNotices = notices.slice(0, limit);
+
+    return successResponse({ notices: paginatedNotices, total: notices.length, hasMore: notices.length > limit });
   } catch (err) {
     console.error(err);
     return errorResponse("Failed to fetch notices", "SERVER_ERROR");

@@ -26,14 +26,23 @@
 /build
 /dist
 
-# Environment variables
-.env*
+# Environment variables & Secrets
+.env
+.env.*
 !.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*secret*
+credentials.json
+firebase-adminsdk-*.json
 
 # Firebase
 **/serviceAccountKey.json
 **/*.firebase/
 firebase-debug.log
+.firebase/
 
 # IDE & Editor
 .vscode/
@@ -75,7 +84,6 @@ pnpm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
-next-env.d.ts
 
 # Node
 npm-shrinkwrap.json
@@ -98,3 +106,6 @@ pnpm-lock.yaml
 tmp/
 temp/
 *.tmp
+
+
+.agents/*

@@ -34,6 +34,7 @@ export type BlogCategory =
   | "news";
 
 export type UserRole = "student" | "editor" | "admin";
+export type UserStatus = "active" | "suspended" | "disabled";
 
 // ─── Notice ──────────────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ export interface AppUser {
   email: string;
   photoURL?: string;
   role: UserRole;
-  status: "active" | "disabled";
+  status: UserStatus;
   savedUniversities?: string[];
   createdAt: Date;
   updatedAt: Date;

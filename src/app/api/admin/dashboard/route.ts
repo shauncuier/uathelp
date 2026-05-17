@@ -14,46 +14,62 @@ export async function GET(request: NextRequest) {
       universitiesSnap,
       postsSnap,
       usersSnap,
-      urgentSnap,
-      latestNoticesSnap,
-      latestPostsSnap,
       logsSnap,
-      upcomingSnap,
     ] = await Promise.all([
       adminDb.collection("notices").get(),
       adminDb.collection("universities").get(),
       adminDb.collection("blogPosts").get(),
       adminDb.collection("users").get(),
-      adminDb.collection("notices").where("isUrgent", "==", true).where("status", "==", "published").limit(5).get(),
-      adminDb.collection("notices").orderBy("createdAt", "desc").limit(5).get(),
-      adminDb.collection("blogPosts").orderBy("createdAt", "desc").limit(5).get(),
       adminDb.collection("adminLogs").orderBy("createdAt", "desc").limit(10).get(),
-      adminDb.collection("notices")
-        .where("status", "==", "published")
-        .where("applicationEnd", ">=", new Date())
-        .orderBy("applicationEnd", "asc")
-        .limit(5)
-        .get(),
     ]);
 
-    const notices = noticesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const published = notices.filter((n: any) => n.status === "published").length;
-    const draft = notices.filter((n: any) => n.status === "draft").length;
-    const archived = notices.filter((n: any) => n.status === "archived").length;
+    const notices = noticesSnap.docs.map((d) => ({ id: d.id, ...d.data() as any }));
+    const posts = postsSnap.docs.map((d) => ({ id: d.id, ...d.data() as any }));
+
+    const publishedNotices = notices.filter((n) => n.status === "published");
+    const draftNotices = notices.filter((n) => n.status === "draft");
+    const archivedNotices = notices.filter((n) => n.status === "archived");
+    const urgentNotices = publishedNotices.filter((n) => n.isUrgent);
+
+    const latestNotices = [...notices].sort((a, b) => {
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+      return bTime - aTime;
+    }).slice(0, 5);
+
+    const latestPosts = [...posts].sort((a, b) => {
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+      return bTime - aTime;
+    }).slice(0, 5);
+
+    const now = new Date().getTime();
+    const upcomingDeadlines = publishedNotices
+      .filter((n) => {
+        if (!n.applicationEnd) return false;
+        const end = n.applicationEnd.toDate ? n.applicationEnd.toDate().getTime() : new Date(n.applicationEnd).getTime();
+        return end >= now;
+      })
+      .sort((a, b) => {
+        const aEnd = a.applicationEnd.toDate ? a.applicationEnd.toDate().getTime() : new Date(a.applicationEnd).getTime();
+        const bEnd = b.applicationEnd.toDate ? b.applicationEnd.toDate().getTime() : new Date(b.applicationEnd).getTime();
+        return aEnd - bEnd;
+      })
+      .slice(0, 5);
 
     return successResponse({
       totalNotices: notices.length,
-      publishedNotices: published,
-      draftNotices: draft,
-      archivedNotices: archived,
-      urgentNotices: urgentSnap.size,
+      publishedNotices: publishedNotices.length,
+      draftNotices: draftNotices.length,
+      archivedNotices: archivedNotices.length,
+      urgentNotices: urgentNotices.length,
       totalUniversities: universitiesSnap.size,
-      totalBlogPosts: postsSnap.size,
+      totalBlogPosts: posts.length,
       totalUsers: usersSnap.size,
-      latestNotices: latestNoticesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-      latestPosts: latestPostsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      latestNotices,
+      latestPosts,
       recentAdminLogs: logsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-      upcomingDeadlines: upcomingSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      upcomingDeadlines,
     });
   } catch (err) {
     console.error(err);

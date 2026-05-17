@@ -12,8 +12,6 @@ const navLinks = [
   { href: "/universities", label: "Universities" },
   { href: "/tips", label: "Tips" },
   { href: "/guides", label: "Guides" },
-  { href: "/results", label: "Results" },
-  { href: "/admit-card", label: "Admit Card" },
 ];
 
 export function Header() {
@@ -61,7 +59,7 @@ export function Header() {
                     </Button>
                   </Link>
                 ) : (
-                  <Link href="/login">
+                  <Link href="/profile">
                     <Button variant="outline" size="sm" className="hidden sm:flex">
                       My Account
                     </Button>
@@ -80,10 +78,8 @@ export function Header() {
 
           {/* Mobile Menu */}
           <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
+            <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
+              <Menu className="h-5 w-5" />
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
               <div className="flex items-center gap-2 mb-6 pt-2">
@@ -102,11 +98,17 @@ export function Header() {
                 ))}
                 <div className="border-t mt-3 pt-3">
                   {appUser ? (
-                    (appUser.role === "admin" || appUser.role === "editor") && (
+                    appUser.role === "admin" || appUser.role === "editor" ? (
                       <Link href="/admin">
                         <Button className="w-full gap-2">
                           <LayoutDashboard className="h-4 w-4" />
                           Admin Dashboard
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link href="/profile">
+                        <Button className="w-full gap-2" variant="outline">
+                          My Account
                         </Button>
                       </Link>
                     )

@@ -27,7 +27,7 @@ export function UniversityForm({ initialData, mode }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const form = useForm<CreateUniversityInput>({
+  const form = useForm<any>({
     resolver: zodResolver(createUniversitySchema),
     defaultValues: {
       nameEn: "", nameBn: "", shortName: "", type: "public",
@@ -88,7 +88,7 @@ export function UniversityForm({ initialData, mode }: Props) {
         </div>
         <div className="space-y-1.5">
           <Label>Division *</Label>
-          <Select onValueChange={(v) => form.setValue("division", v)} defaultValue={initialData?.division}>
+          <Select onValueChange={(v) => form.setValue("division", v)} defaultValue={initialData?.division || undefined}>
             <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
             <SelectContent>{divisions.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
           </Select>

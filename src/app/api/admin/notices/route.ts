@@ -5,7 +5,7 @@ import { requireEditorOrAdmin } from "@/lib/server/auth";
 import { successResponse, errorResponse } from "@/lib/server/api-response";
 import { createNoticeSchema } from "@/lib/validations/notice";
 import { createAdminLog } from "@/lib/server/admin-log";
-import { generateSlug } from "@/lib/server/slug";
+import { generateUniqueSlug } from "@/lib/server/slug";
 import { generateSearchKeywords } from "@/lib/server/search-keywords";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data;
-    const slug = data.slug || generateSlug(data.title);
+    const baseSlugText = data.slug || data.title;
+    const slug = await generateUniqueSlug(adminDb, "notices", baseSlugText);
     const searchKeywords = generateSearchKeywords([
       data.title,
       data.universityName,

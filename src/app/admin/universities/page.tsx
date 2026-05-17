@@ -27,11 +27,19 @@ export default function AdminUniversitiesPage() {
   useEffect(() => { const t = setTimeout(fetchUniversities, 300); return () => clearTimeout(t); }, [search]);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    const token = await auth.currentUser?.getIdToken();
-    await fetch(`/api/admin/universities/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    toast.success("University deleted");
-    fetchUniversities();
+    toast(`Delete "${name}"?`, {
+      description: "This cannot be undone.",
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          const token = await auth.currentUser?.getIdToken();
+          await fetch(`/api/admin/universities/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+          toast.success("University deleted");
+          fetchUniversities();
+        }
+      },
+      cancel: { label: "Cancel", onClick: () => {} }
+    });
   };
 
   const typeColors: Record<string, string> = {

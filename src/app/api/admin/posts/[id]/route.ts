@@ -5,7 +5,7 @@ import { requireEditorOrAdmin, requireAdmin } from "@/lib/server/auth";
 import { successResponse, errorResponse } from "@/lib/server/api-response";
 import { updatePostSchema } from "@/lib/validations/post";
 import { createAdminLog } from "@/lib/server/admin-log";
-import { generateSlug } from "@/lib/server/slug";
+import { generateSlug, generateUniqueSlug } from "@/lib/server/slug";
 import { generateSearchKeywords } from "@/lib/server/search-keywords";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -39,8 +39,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const existingData = existing.data() as any;
   const updateData: any = { ...data, updatedAt: FieldValue.serverTimestamp() };
 
-  if (data.title && data.title !== existingData.title && !data.slug) {
-    updateData.slug = generateSlug(data.title);
+  if (data.slug) {
+    updateData.slug = await generateUniqueSlug(adminDb, "blogPosts", data.slug, id);
+  } else if (data.title && data.title !== existingData.title) {
+    updateData.slug = await generateUniqueSlug(adminDb, "blogPosts", data.title, id);
   }
 
   if (data.title || data.category || data.tags) {

@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const userRoleEnum = z.enum(["student", "editor", "admin"]);
-export const userStatusEnum = z.enum(["active", "disabled"]);
+export const userStatusEnum = z.enum(["active", "suspended", "disabled"]);
 
 export const updateUserSchema = z.object({
   name: z.string().min(2).max(100).optional(),

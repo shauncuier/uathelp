@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { auth } from "@/lib/firebase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ interface NoticeFormProps {
   mode: "create" | "edit";
 }
 
-const categories = ["admission", "result", "admit-card", "seat-plan", "routine", "job", "scholarship", "general"];
+const categories = ["admission", "result", "seat-plan", "routine", "job", "scholarship", "general"];
 const uniTypes = ["public", "private", "national", "medical", "engineering", "agriculture"];
 const statuses = ["draft", "published", "archived"];
 
@@ -67,7 +66,7 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
         body: JSON.stringify(data),
       });
       const result = await res.json();
-      if (!result.success) throw new Error(result.error?.message);
+      if (!res.ok || !result.success) throw new Error(result.error || result.message || "Failed to save notice");
       toast.success(mode === "create" ? "Notice created!" : "Notice updated!");
       router.push("/admin/notices");
     } catch (err: any) {
@@ -77,8 +76,13 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
     }
   };
 
+  const onError = (errors: any) => {
+    toast.error("Please fix the errors in the form before submitting.");
+    console.log("Validation Errors:", errors);
+  };
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-3xl">
+    <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6 max-w-3xl">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2 space-y-1.5">
           <Label>Title *</Label>
@@ -104,7 +108,7 @@ export function NoticeForm({ initialData, mode }: NoticeFormProps) {
             const uni = universities.find((u) => u.id === v);
             form.setValue("universityId", v);
             if (uni) form.setValue("universityName", uni.nameEn);
-          }} defaultValue={initialData?.universityId}>
+          }} defaultValue={initialData?.universityId || undefined}>
             <SelectTrigger><SelectValue placeholder="Select university" /></SelectTrigger>
             <SelectContent>
               {universities.map((u) => <SelectItem key={u.id} value={u.id}>{u.nameEn}</SelectItem>)}

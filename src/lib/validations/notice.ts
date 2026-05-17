@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const noticeCategoryEnum = z.enum([
-  "admission", "result", "admit-card", "seat-plan",
+  "admission", "result", "seat-plan",
   "routine", "job", "scholarship", "general",
 ]);
 
@@ -23,13 +23,13 @@ export const createNoticeSchema = z.object({
   universityType: universityTypeEnum,
   unit: z.string().optional(),
   session: z.string().min(1, "Session is required"),
-  applicationStart: z.string().datetime().optional().nullable(),
-  applicationEnd: z.string().datetime().optional().nullable(),
-  examDate: z.string().datetime().optional().nullable(),
-  resultDate: z.string().datetime().optional().nullable(),
-  pdfUrl: z.string().url().optional().nullable(),
-  officialUrl: z.string().url().optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
+  applicationStart: z.string().optional().nullable(),
+  applicationEnd: z.string().optional().nullable(),
+  examDate: z.string().optional().nullable(),
+  resultDate: z.string().optional().nullable(),
+  pdfUrl: z.string().url().optional().or(z.literal("")).nullable(),
+  officialUrl: z.string().url().optional().or(z.literal("")).nullable(),
+  imageUrl: z.string().url().optional().or(z.literal("")).nullable(),
   tags: z.array(z.string()).default([]),
   isFeatured: z.boolean().default(false),
   isUrgent: z.boolean().default(false),
