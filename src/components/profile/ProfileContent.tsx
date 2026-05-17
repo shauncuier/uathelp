@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, GraduationCap, Bookmark } from "lucide-react";
+import { LogOut, User, Mail, Shield } from "lucide-react";
 import { logout } from "@/lib/firebase/auth";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase/client";
@@ -38,63 +38,89 @@ export default function ProfileContent() {
     }
   };
 
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading || !user) return null;
+
+  const userRole = userData?.role || appUser?.role || "student";
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
-      <div className="container mx-auto px-4 max-w-5xl">
+    <div className="min-h-screen bg-slate-50 py-8">
+      <div className="container mx-auto max-w-2xl px-4">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Student Dashboard</h1>
-          <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" onClick={handleLogout}>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage your account settings</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          >
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-1 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                My Profile
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Name</p>
-                <p className="text-base text-foreground font-medium">{userData?.name || appUser?.name || user.displayName || "Student"}</p>
+        {/* Profile Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Account Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-start gap-4 pb-4 border-b">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <User className="h-6 w-6 text-primary" />
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <p className="text-base text-foreground">{user.email}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Name</p>
+                <p className="font-medium text-foreground mt-0.5">
+                  {userData?.name || appUser?.name || user.displayName || "Student"}
+                </p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Account Type</p>
-                <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 mt-1">
-                  {userData?.role || appUser?.role || "Student"}
-                </span>
+            </div>
+
+            <div className="flex items-start gap-4 pb-4 border-b">
+              <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Mail className="h-6 w-6 text-blue-600" />
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Email</p>
+                <p className="font-medium text-foreground mt-0.5 truncate">{user.email}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
+                <Shield className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-muted-foreground">Account Type</p>
+                <p className="font-medium text-foreground mt-0.5 capitalize">{userRole}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all">
+            <CardContent className="p-6 text-center">
+              <div className="text-2xl mb-2">📚</div>
+              <p className="font-medium text-foreground text-sm mb-2">Browse Notices</p>
+              <Button variant="outline" size="sm" onClick={() => router.push("/notices")}>
+                Explore
+              </Button>
             </CardContent>
           </Card>
 
-          <Card className="md:col-span-2 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bookmark className="h-5 w-5 text-primary" />
-                Saved Activities
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 border-2 border-dashed rounded-lg border-slate-200">
-                <GraduationCap className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-base font-medium text-slate-900">No saved items yet</h3>
-                <p className="text-sm text-slate-500 max-w-sm mx-auto mt-1">
-                  When you save universities or notices, they will appear here for quick access.
-                </p>
-                <Button variant="outline" className="mt-4" onClick={() => router.push("/universities")}>
-                  Explore Universities
-                </Button>
-              </div>
+          <Card className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all">
+            <CardContent className="p-6 text-center">
+              <div className="text-2xl mb-2">🏫</div>
+              <p className="font-medium text-foreground text-sm mb-2">Universities</p>
+              <Button variant="outline" size="sm" onClick={() => router.push("/universities")}>
+                Explore
+              </Button>
             </CardContent>
           </Card>
         </div>

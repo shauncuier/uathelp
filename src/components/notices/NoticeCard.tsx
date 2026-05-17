@@ -1,10 +1,8 @@
 // src/components/notices/NoticeCard.tsx
 import Link from "next/link";
-import { Calendar, Building2, ExternalLink } from "lucide-react";
+import { Calendar, Building2, Clock, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "@/components/shared/CategoryBadge";
-import { UrgentBadge } from "@/components/shared/UrgentBadge";
 import { Notice } from "@/types";
 import { format } from "date-fns";
 
@@ -23,58 +21,62 @@ function toDate(val: any): Date | null {
 
 export function NoticeCard({ notice }: NoticeCardProps) {
   const deadline = toDate(notice.applicationEnd);
-  const published = toDate(notice.publishedAt || notice.createdAt);
   const isDeadlineSoon =
     deadline && deadline > new Date() &&
     (deadline.getTime() - Date.now()) < 7 * 24 * 60 * 60 * 1000;
+  const isExpired = deadline && deadline < new Date();
 
   return (
-    <Card className="card-hover border-border hover:border-primary/30 transition-colors">
-      <CardContent className="p-5">
-        <div className="flex flex-wrap gap-2 mb-3">
-          <CategoryBadge category={notice.category} />
-          {notice.isUrgent && <UrgentBadge />}
-          {isDeadlineSoon && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
-              Deadline Soon
-            </span>
-          )}
-        </div>
+    <Link href={`/notices/${notice.slug}`}>
+      <Card className="border hover:border-primary/50 hover:shadow-md transition-all cursor-pointer h-full bg-white">
+        <CardContent className="p-4 flex flex-col h-full">
+          {/* Top badges */}
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <CategoryBadge category={notice.category} />
+            {isExpired && (
+              <span className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded">
+                Expired
+              </span>
+            )}
+            {!isExpired && isDeadlineSoon && (
+              <span className="text-xs font-medium px-2 py-1 bg-amber-50 text-amber-700 rounded flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Soon
+              </span>
+            )}
+            {notice.isUrgent && !isExpired && (
+              <span className="text-xs font-medium px-2 py-1 bg-red-50 text-red-700 rounded flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> Urgent
+              </span>
+            )}
+          </div>
 
-        <Link href={`/notices/${notice.slug}`}>
-          <h3 className="font-semibold text-foreground hover:text-primary transition-colors line-clamp-2 mb-2 cursor-pointer">
+          {/* Title */}
+          <h3 className="font-semibold text-sm text-foreground line-clamp-2 mb-2 hover:text-primary transition-colors">
             {notice.title}
           </h3>
-        </Link>
 
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{notice.summary}</p>
+          {/* Summary */}
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">
+            {notice.summary}
+          </p>
 
-        <div className="flex flex-col gap-1.5 mb-4">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">{notice.universityName}</span>
+          {/* University & Deadline */}
+          <div className="space-y-1.5 text-xs text-muted-foreground border-t pt-3">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-3.5 w-3.5 flex-shrink-0 text-primary/60" />
+              <span className="line-clamp-1">{notice.universityName}</span>
+            </div>
+            {deadline && (
+              <div className={`flex items-center gap-2 ${isDeadlineSoon ? "text-amber-600 font-medium" : isExpired ? "text-slate-400" : ""}`}>
+                <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>
+                  {isExpired ? "Ended" : "Deadline"}: {format(deadline, "dd MMM")}
+                </span>
+              </div>
+            )}
           </div>
-          {deadline && (
-            <div className={`flex items-center gap-1.5 text-xs ${isDeadlineSoon ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
-              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>Deadline: {format(deadline, "dd MMM yyyy")}</span>
-            </div>
-          )}
-          {published && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>Published: {format(published, "dd MMM yyyy")}</span>
-            </div>
-          )}
-        </div>
-
-        <Link href={`/notices/${notice.slug}`}>
-          <Button variant="outline" size="sm" className="w-full group">
-            Read More
-            <ExternalLink className="h-3.5 w-3.5 ml-1.5 group-hover:translate-x-0.5 transition-transform" />
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
