@@ -1,6 +1,6 @@
 "use client";
 // src/app/admin/users/page.tsx
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +19,8 @@ type AdminUser = {
   createdAt?: unknown;
 };
 
+type RoleFilter = UserRole | "all";
+
 function toDate(val: unknown): Date | null {
   if (!val) return null;
   if (typeof val === "object" && "seconds" in val && typeof val.seconds === "number") return new Date(val.seconds * 1000);
@@ -34,9 +36,9 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [role, setRole] = useState("all");
+  const [role, setRole] = useState<RoleFilter>("all");
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     const token = await auth.currentUser?.getIdToken();
     const params = new URLSearchParams({ limit: "50" });
     if (search) params.set("search", search);
@@ -45,11 +47,11 @@ export default function AdminUsersPage() {
     const data = await res.json();
     setUsers(data.data?.users || []);
     setLoading(false);
-  };
+  }, [role, search]);
 
-  useEffect(() => { const t = setTimeout(fetchUsers, 300); return () => clearTimeout(t); }, [search, role]);
+  useEffect(() => { const t = setTimeout(fetchUsers, 300); return () => clearTimeout(t); }, [fetchUsers]);
 
-  const updateRole = async (id: string, newRole: string) => {
+  const updateRole = async (id: string, newRole: UserRole) => {
     toast(`Change user role to ${newRole}?`, {
       description: "This will alter the user's permissions.",
       action: {
@@ -120,7 +122,7 @@ export default function AdminUsersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search users by email or name..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Select value={role} onValueChange={setRole}>
+        <Select value={role} onValueChange={(val) => val && setRole(val as RoleFilter)}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
@@ -159,7 +161,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-3 py-3 text-muted-foreground text-xs">{joined ? format(joined, "dd MMM yyyy") : "Unknown"}</td>
                     <td className="px-3 py-3">
-                      <Select value={u.status || "active"} onValueChange={(val) => updateStatus(u.id, val as UserStatus)}>
+                      <Select value={u.status || "active"} onValueChange={(val) => val && updateStatus(u.id, val as UserStatus)}>
                         <SelectTrigger className={`w-32 h-8 text-xs capitalize ${statusClass(u.status || "active")}`}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
@@ -169,7 +171,7 @@ export default function AdminUsersPage() {
                       </Select>
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <Select value={u.role} onValueChange={(val) => updateRole(u.id, val)}>
+                      <Select value={u.role} onValueChange={(val) => val && updateRole(u.id, val as UserRole)}>
                         <SelectTrigger className="w-28 h-8 text-xs ml-auto"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="student">Student</SelectItem>
