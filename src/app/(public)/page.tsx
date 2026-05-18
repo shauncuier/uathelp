@@ -1,10 +1,11 @@
 // src/app/(public)/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Bell, BookOpen, GraduationCap, Search, Zap } from "lucide-react";
+import { ArrowRight, Bell, BookOpen, GraduationCap, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NoticeCard } from "@/components/notices/NoticeCard";
 import { BlogCard } from "@/components/blog/BlogCard";
+import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 
 export const metadata: Metadata = {
   title: "UAT Help — University Admission Notices & Resources",
@@ -70,14 +71,7 @@ export default async function HomePage() {
             </p>
 
             {/* Search Bar */}
-            <div className="flex gap-2 justify-center pt-2">
-              <Link href="/notices" className="flex-1 max-w-sm">
-                <div className="flex items-center gap-3 bg-slate-50 hover:bg-slate-100 border rounded-lg px-4 py-3 cursor-pointer transition-colors">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Search notices...</span>
-                </div>
-              </Link>
-            </div>
+            <HomeSearchBar />
 
             <div className="flex flex-wrap gap-2 justify-center pt-2">
               <Link href="/notices">
