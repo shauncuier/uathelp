@@ -95,30 +95,30 @@ export default function NoticesContent() {
           </div>
         </div>
 
-        {/* Filters - Compact */}
-        <div className="mb-6 space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+         {/* Filters - Compact */}
+         <div className="mb-6 space-y-3">
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+             <Select value={category} onValueChange={(value) => value && setCategory(value)}>
+               <SelectTrigger className="h-9 text-sm">
+                 <SelectValue />
+               </SelectTrigger>
+               <SelectContent>
+                 {categories.map((c) => (
+                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
 
-            <Select value={universityType} onValueChange={setUniversityType}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {universityTypes.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+             <Select value={universityType} onValueChange={(value) => value && setUniversityType(value)}>
+               <SelectTrigger className="h-9 text-sm">
+                 <SelectValue />
+               </SelectTrigger>
+               <SelectContent>
+                 {universityTypes.map((t) => (
+                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
 
             <Button
               variant={urgent ? "default" : "outline"}

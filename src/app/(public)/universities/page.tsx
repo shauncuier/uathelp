@@ -76,7 +76,7 @@ export default function UniversitiesPage() {
 
         {/* Filter & Reset */}
         <div className="mb-6 flex items-center gap-2">
-          <Select value={type} onValueChange={setType}>
+          <Select value={type} onValueChange={(value) => value && setType(value)}>
             <SelectTrigger className="w-full sm:w-48 h-9 text-sm">
               <SelectValue />
             </SelectTrigger>

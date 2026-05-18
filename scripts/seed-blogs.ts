@@ -76,8 +76,235 @@ const mockBlogs = [
     imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop",
     status: "published",
     viewCount: 980,
-  }
+  },
+  {
+    title: "How to Write a Strong Admission Essay",
+    excerpt: "Your admission essay is your chance to stand out. Learn how to write a compelling essay that captures the attention of admission committees.",
+    content: `
+      <h2>Start with a Hook</h2>
+      <p>The opening sentence should be captivating and unique. Avoid generic statements like 'I want to become a doctor since childhood.' Instead, tell a specific story that led to your passion.</p>
+      
+      <h2>Show, Don't Tell</h2>
+      <p>Rather than saying 'I am hardworking,' describe an instance where your hard work paid off. Use anecdotes and examples to demonstrate your qualities.</p>
+
+      <h2>Be Authentic</h2>
+      <p>Admission committees read thousands of essays. They can spot insincerity from a mile away. Write about your genuine experiences and aspirations, not what you think they want to hear.</p>
+
+      <h2>Proofread Multiple Times</h2>
+      <p>Grammatical errors and typos can negatively impact your application. Get your essay reviewed by teachers, parents, or friends before submission.</p>
+
+      <h2>Keep it Concise</h2>
+      <p>Most essays have word limits. Use every word wisely. Remove redundancy and keep your narrative flowing.</p>
+    `,
+    category: "tips",
+    tags: ["Essay Writing", "Admission Strategy", "Writing Tips", "Application"],
+    searchKeywords: ["admission essay tips", "how to write essay", "college essay writing"],
+    imageUrl: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 1200,
+  },
+  {
+    title: "Understanding the GPA System in Bangladesh Universities",
+    excerpt: "GPA is a crucial metric in university admissions. This guide explains how the GPA system works in Bangladesh and how it impacts your admission prospects.",
+    content: `
+      <h2>What is GPA?</h2>
+      <p>Grade Point Average (GPA) is a numerical representation of your academic performance on a scale from 0 to 4.0, where 4.0 represents perfect grades.</p>
+      
+      <h2>Minimum GPA Requirements</h2>
+      <p>Different universities have different GPA requirements. For top public universities, you typically need a combined GPA of 7-9. Medical universities require even higher GPA (9.0+).</p>
+
+      <h2>How GPA is Calculated</h2>
+      <p>Your final GPA depends on your grades in individual subjects. Some subjects carry more weight than others. For example, in science stream, math and science subjects often have higher weightage.</p>
+
+      <h2>Improving Your GPA</h2>
+      <p>If your current GPA is below target, focus on excelling in remaining exams. Consistent performance across all subjects is better than excellence in just a few.</p>
+
+      <h2>GPA and Admission Decisions</h2>
+      <p>While GPA is important, it's not the only factor. Admission tests results, merit, and other extracurricular activities also play a role in final selection.</p>
+    `,
+    category: "guide",
+    tags: ["GPA", "Academic Performance", "Admission Criteria", "Study Guide"],
+    searchKeywords: ["gpa system", "gpa calculation", "bangladesh universities", "gpa requirements"],
+    imageUrl: "https://images.unsplash.com/photo-1434582881033-add914d3cb1b?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 850,
+  },
+  {
+    title: "Agricultural Admission 101: BAU, BSMRAU, and SAU",
+    excerpt: "Interested in agriculture? Compare the top agricultural universities in Bangladesh and understand the admission process for each.",
+    content: `
+      <h2>Bangladesh Agricultural University (BAU)</h2>
+      <p>Located in Mymensingh, BAU is the largest agricultural university in Bangladesh. It offers a wide range of programs in agriculture, veterinary science, and allied fields. The campus is well-developed with excellent facilities.</p>
+      
+      <h2>BSMR Agricultural University</h2>
+      <p>Located in Gazipur, BSMRAU is known for its research-oriented approach and strong alumni network. The university focuses on practical knowledge and skill development.</p>
+
+      <h2>Sher-e-Bangla Agricultural University</h2>
+      <p>SAU, located in Dhaka, is famous for its urban agriculture programs and innovative research. It's ideal if you prefer an agricultural university within the capital.</p>
+
+      <h2>Admission Process</h2>
+      <p>Admission to agricultural universities is competitive. You need a strong GPA and must clear the entrance examination. Science stream with biology as a subject is mandatory.</p>
+
+      <h2>Career Opportunities</h2>
+      <p>Agricultural graduates have excellent career prospects in government services, NGOs, private sector, and agricultural research organizations.</p>
+    `,
+    category: "subject-guide",
+    tags: ["Agriculture", "BAU", "BSMRAU", "SAU", "Career Guide"],
+    searchKeywords: ["agricultural university", "bau admission", "agriculture career", "bangladeshi universities"],
+    imageUrl: "https://images.unsplash.com/photo-1574943320219-553eb213f72d?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 650,
+  },
+  {
+    title: "National University Admission: A Complete Roadmap",
+    excerpt: "National University offers affordable quality education with flexible schedules. Learn everything about NU admission process and programs.",
+    content: `
+      <h2>What is National University?</h2>
+      <p>National University is Bangladesh's largest affiliating university with hundreds of colleges across the country. It provides quality education at an affordable cost.</p>
+      
+      <h2>Eligibility Criteria</h2>
+      <p>You must have completed your HSC or equivalent examination. There's no minimum GPA requirement, making NU accessible to a wider range of students.</p>
+
+      <h2>Programs Offered</h2>
+      <p>NU offers programs in various disciplines including engineering, business, humanities, science, and social sciences. Most programs are offered at colleges affiliated with NU across Bangladesh.</p>
+
+      <h2>Admission Process</h2>
+      <p>Admission to NU is merit-based. You need to apply to your nearest affiliated college and appear for the entrance examination conducted by that college.</p>
+
+      <h2>Advantages of NU</h2>
+      <p>NU offers flexible class schedules (morning, evening, weekend), affordable tuition, and recognized qualifications that are respected in job markets.</p>
+
+      <h2>Future Prospects</h2>
+      <p>Many NU graduates pursue professional courses like BCS, MBA, and law. A NU degree is a stepping stone to higher education and successful careers.</p>
+    `,
+    category: "guide",
+    tags: ["National University", "NU Admission", "Higher Education", "Career Path"],
+    searchKeywords: ["national university admission", "nu programs", "national university bangladesh"],
+    imageUrl: "https://images.unsplash.com/photo-1427504494785-cdcb0f3e4dbe?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 920,
+  },
+  {
+    title: "Physics Preparation Strategy for University Admission",
+    excerpt: "Physics often intimidates students preparing for admission tests. Here's a strategic approach to mastering physics and scoring high marks.",
+    content: `
+      <h2>1. Build Strong Fundamentals</h2>
+      <p>Before diving into complex problems, ensure your basic concepts are crystal clear. Revisit formulas and their derivations from your HSC textbook.</p>
+      
+      <h2>2. Focus on Frequently Asked Topics</h2>
+      <p>Analyze past 10 years question papers to identify recurring topics. Mechanics, electricity, thermodynamics, and modern physics are usually the focus areas.</p>
+
+      <h2>3. Practice Numerical Problems</h2>
+      <p>Physics is not just theory. Solve as many numerical problems as possible. This develops problem-solving skills and saves time during the actual exam.</p>
+
+      <h2>4. Memorize Key Formulas</h2>
+      <p>Create a formula sheet and memorize critical equations. But understanding what each formula means is more important than mere memorization.</p>
+
+      <h2>5. Take Mock Tests</h2>
+      <p>Time yourself while solving mock tests. This helps you manage time better and identify weak areas that need more attention.</p>
+
+      <h2>6. Avoid Overthinking</h2>
+      <p>Sometimes simple problems are deliberately made to look complex. Don't overcomplicate solutions. Go for the straightforward approach first.</p>
+    `,
+    category: "tips",
+    tags: ["Physics", "Science", "Study Strategy", "Exam Preparation"],
+    searchKeywords: ["physics preparation", "physics tips", "admission test physics", "science admission"],
+    imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07f04a?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 1100,
+  },
+  {
+    title: "Chemistry Mastery Guide for Competitive Exams",
+    excerpt: "Chemistry is all about understanding reactions and patterns. Master the subject with this comprehensive guide to crack any admission test.",
+    content: `
+      <h2>Organic vs Inorganic Chemistry</h2>
+      <p>Organic chemistry requires memorization of reactions and mechanisms. Inorganic chemistry is more conceptual. Balance your study time between both to score well.</p>
+      
+      <h2>Make Reaction Flowcharts</h2>
+      <p>Create visual flowcharts showing how different compounds react with each other. This visual approach helps retain information longer.</p>
+
+      <h2>Understand Bonding Theories</h2>
+      <p>Bonding theories form the foundation of chemistry. Whether it's ionic, covalent, or coordinate bonding, understanding the 'why' is crucial.</p>
+
+      <h2>Practice Equation Balancing</h2>
+      <p>Chemical equations are everywhere. Practice balancing them regularly to develop speed and accuracy.</p>
+
+      <h2>Use Mnemonics</h2>
+      <p>Chemistry involves many periodic elements and reactions. Use mnemonics to remember complex information easily.</p>
+
+      <h2>Lab Experience Matters</h2>
+      <p>If possible, perform simple experiments at home to understand concepts practically. Hands-on learning is more effective than theoretical study.</p>
+    `,
+    category: "tips",
+    tags: ["Chemistry", "Science", "Reaction Guide", "Exam Preparation"],
+    searchKeywords: ["chemistry preparation", "organic chemistry", "chemistry tips", "admission test chemistry"],
+    imageUrl: "https://images.unsplash.com/photo-1530587191325-3db8b90a2e7d?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 1350,
+  },
+  {
+    title: "English Language Mastery for Admission Tests",
+    excerpt: "English is critical in most admission tests. Improve your English skills with vocabulary, grammar, and comprehension strategies that actually work.",
+    content: `
+      <h2>Build Your Vocabulary</h2>
+      <p>Learn 5-10 new words daily with their meanings, pronunciation, and usage. Create flashcards for better retention. Understanding word roots helps remember similar words.</p>
+      
+      <h2>Master Grammar Basics</h2>
+      <p>Focus on subject-verb agreement, tense consistency, and preposition usage. These are the most commonly tested grammar topics.</p>
+
+      <h2>Improve Reading Comprehension</h2>
+      <p>Read extensively from diverse sources: news articles, blogs, and academic journals. This expands your vocabulary and improves understanding speed.</p>
+
+      <h2>Practice Writing</h2>
+      <p>Write essays, summaries, and short paragraphs daily. Get them reviewed by someone proficient in English to identify errors.</p>
+
+      <h2>Develop Listening Skills</h2>
+      <p>If your test includes listening sections, watch English movies, podcasts, and lectures. This improves your ability to understand native speakers.</p>
+
+      <h2>Take Timed Practice Tests</h2>
+      <p>English tests are often time-bound. Practice solving questions within strict time limits to build speed and accuracy.</p>
+    `,
+    category: "tips",
+    tags: ["English", "Vocabulary", "Grammar", "Language Skills"],
+    searchKeywords: ["english preparation", "vocabulary tips", "grammar practice", "english admission test"],
+    imageUrl: "https://images.unsplash.com/photo-1451127580459-f4c1ad4ae379?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 1720,
+  },
+  {
+    title: "Stress Management During Exam Preparation",
+    excerpt: "Exam season stress can be overwhelming. Learn practical stress management techniques to stay calm, focused, and mentally healthy during your preparation.",
+    content: `
+      <h2>Maintain a Regular Sleep Schedule</h2>
+      <p>Your brain needs rest to function optimally. Aim for 7-8 hours of sleep daily. Avoid last-minute cramming the night before the exam.</p>
+      
+      <h2>Exercise Regularly</h2>
+      <p>Physical activity releases endorphins, which improve mood and reduce stress. A 30-minute walk or light workout daily can work wonders.</p>
+
+      <h2>Practice Meditation and Deep Breathing</h2>
+      <p>Spend 10-15 minutes daily on meditation. When stressed, practice deep breathing exercises to calm your nervous system.</p>
+
+      <h2>Take Regular Breaks</h2>
+      <p>Don't study continuously for 5-6 hours. Take short 10-15 minute breaks every hour. Use breaks to relax, not to check social media.</p>
+
+      <h2>Eat Healthy</h2>
+      <p>Junk food affects your mood and energy levels. Eat nutritious meals with fruits, vegetables, and protein to keep your mind sharp.</p>
+
+      <h2>Talk to Someone</h2>
+      <p>Share your worries with friends, family, or a counselor. Talking about stress helps alleviate it. You're not alone in this journey.</p>
+
+      <h2>Positive Self-Talk</h2>
+      <p>Replace negative thoughts with positive affirmations. Tell yourself that you are prepared and capable of doing well.</p>
+    `,
+    category: "tips",
+    tags: ["Stress Management", "Mental Health", "Well-being", "Study Tips"],
+    searchKeywords: ["exam stress", "stress management", "mental health", "study stress relief"],
+    imageUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=2070&auto=format&fit=crop",
+    status: "published",
+    viewCount: 2100,
+  },
 ];
+
 
 async function seedBlogs() {
   console.log("Seeding real blog posts...");

@@ -6,32 +6,50 @@ import { Button } from "@/components/ui/button";
 import { NoticeCard } from "@/components/notices/NoticeCard";
 import { BlogCard } from "@/components/blog/BlogCard";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import { adminDb } from "@/lib/firebase/admin";
 
 export const metadata: Metadata = {
   title: "UAT Help — University Admission Notices & Resources",
   description:
     "Find admission circulars, results, admit cards, and preparation tips for Bangladeshi universities. All in one place.",
 };
+export const revalidate = 300; // Revalidate every 5 minutes
 
 async function getHomeData() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const [urgentRes, latestRes, tipsRes] = await Promise.all([
-      fetch(`${baseUrl}/api/public/notices?urgent=true&limit=3`, { next: { revalidate: 300 } }),
-      fetch(`${baseUrl}/api/public/notices?limit=6`, { next: { revalidate: 300 } }),
-      fetch(`${baseUrl}/api/public/posts?category=tips&limit=3`, { next: { revalidate: 300 } }),
+    // Fetch directly from Firestore - use simple queries only
+    // Fetch all data and filter in memory to avoid index requirements
+    const [noticesSnap, blogsSnap] = await Promise.all([
+      adminDb.collection("notices").get(),
+      adminDb.collection("blogPosts").get(),
     ]);
-    const [urgentData, latestData, tipsData] = await Promise.all([
-      urgentRes.json(),
-      latestRes.json(),
-      tipsRes.json(),
-    ]);
-    return {
-      urgentNotices: urgentData.data?.notices || [],
-      latestNotices: latestData.data?.notices || [],
-      tips: tipsData.data?.posts || [],
-    };
-  } catch {
+    
+    const allNotices = noticesSnap.docs
+      .map(d => ({ id: d.id, ...d.data() } as any))
+      .filter((n: any) => n.status === "published")
+      .sort((a: any, b: any) => {
+        const timeA = a.publishedAt?.toMillis?.() || new Date(a.publishedAt || 0).getTime();
+        const timeB = b.publishedAt?.toMillis?.() || new Date(b.publishedAt || 0).getTime();
+        return timeB - timeA;
+      });
+      
+    const allBlogs = blogsSnap.docs
+      .map(d => ({ id: d.id, ...d.data() } as any))
+      .filter((b: any) => b.status === "published")
+      .sort((a: any, b: any) => {
+        const timeA = a.publishedAt?.toMillis?.() || new Date(a.publishedAt || 0).getTime();
+        const timeB = b.publishedAt?.toMillis?.() || new Date(b.publishedAt || 0).getTime();
+        return timeB - timeA;
+      });
+    
+    // Filter in memory
+    const urgentNotices = allNotices.filter((n: any) => n.isUrgent).slice(0, 3);
+    const latestNotices = allNotices.slice(0, 6);
+    const tips = allBlogs.filter((b: any) => b.category === "tips").slice(0, 3);
+
+    return { urgentNotices, latestNotices, tips };
+  } catch (error) {
+    console.error("Error fetching home data:", error);
     return { urgentNotices: [], latestNotices: [], tips: [] };
   }
 }
@@ -56,34 +74,48 @@ export default async function HomePage() {
   const { urgentNotices, latestNotices, tips } = await getHomeData();
 
   return (
-    <div className="bg-white">
-      {/* Hero - Clean & Minimal */}
-      <section className="pt-16 pb-12 px-4 border-b">
-        <div className="container mx-auto max-w-3xl">
-          <div className="text-center space-y-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
-              University Admission <br className="hidden sm:block" />
-              <span className="text-primary">Notices in One Place</span>
-            </h1>
-            
-            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-              Get all admission notices, results, admit cards, and admission tips for Bangladeshi universities.
-            </p>
+    <div className="bg-gradient-to-b from-blue-50 to-white">
+      {/* Hero Section */}
+      <section className="py-16 px-4">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center space-y-8">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
+              <span>✨</span>
+              <span>Bangladesh's #1 Admission Platform</span>
+            </div>
+
+            {/* Main Headline */}
+            <div className="space-y-4">
+              <h1 className="text-5xl md:text-6xl font-bold text-foreground leading-tight">
+                Find Your Perfect
+                <br />
+                <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                  University
+                </span>
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                Get admission notices, results, admit cards, and expert tips for all Bangladeshi universities in one place.
+              </p>
+            </div>
 
             {/* Search Bar */}
-            <HomeSearchBar />
+            <div className="pt-4">
+              <HomeSearchBar />
+            </div>
 
-            <div className="flex flex-wrap gap-2 justify-center pt-2">
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
               <Link href="/notices">
-                <Button className="bg-primary hover:bg-primary/90 text-white">
-                  <Bell className="h-4 w-4 mr-2" />
+                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg rounded-lg">
+                  <Bell className="h-5 w-5 mr-2" />
                   Browse Notices
                 </Button>
               </Link>
               <Link href="/universities">
-                <Button variant="outline">
-                  <GraduationCap className="h-4 w-4 mr-2" />
-                  Universities
+                <Button size="lg" variant="outline" className="border-2 border-blue-200 hover:bg-blue-50 rounded-lg">
+                  <GraduationCap className="h-5 w-5 mr-2" />
+                  Explore Universities
                 </Button>
               </Link>
             </div>
@@ -91,20 +123,40 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Urgent Notices - High Priority */}
+      {/* Quick Stats */}
+      <section className="py-12 px-4 border-b">
+        <div className="container mx-auto max-w-4xl">
+          <div className="grid grid-cols-3 gap-4 md:gap-8">
+            <div className="text-center">
+              <div className="text-3xl md:text-4xl font-bold text-blue-600">200+</div>
+              <div className="text-sm text-muted-foreground mt-1">Universities</div>
+            </div>
+            <div className="text-center border-l border-r border-slate-200">
+              <div className="text-3xl md:text-4xl font-bold text-blue-600">1000+</div>
+              <div className="text-sm text-muted-foreground mt-1">Notices</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl md:text-4xl font-bold text-blue-600">50K+</div>
+              <div className="text-sm text-muted-foreground mt-1">Students</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Urgent Notices */}
       {urgentNotices.length > 0 && (
-        <section className="py-10 px-4 bg-red-50/50 border-b">
+        <section className="py-14 px-4 bg-gradient-to-r from-red-50 to-orange-50 border-b">
           <div className="container mx-auto">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <h2 className="font-bold text-foreground">Urgent Notices</h2>
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                <h2 className="text-2xl font-bold text-foreground">🔔 Urgent Notices</h2>
               </div>
-              <Link href="/notices?urgent=true" className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                View All <ArrowRight className="h-3 w-3" />
+              <Link href="/notices?urgent=true" className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                View All <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {urgentNotices.map((notice: any) => (
                 <NoticeCard key={notice.id} notice={notice} />
               ))}
@@ -114,39 +166,45 @@ export default async function HomePage() {
       )}
 
       {/* Latest Notices */}
-      <section className="py-12 px-4 border-b">
+      <section className="py-14 px-4 border-b">
         <div className="container mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-bold text-lg text-foreground">Latest Notices</h2>
-            <Link href="/notices" className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-              View All <ArrowRight className="h-3 w-3" />
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">📋 Latest Notices</h2>
+              <p className="text-sm text-muted-foreground mt-1">Recently published admissions</p>
+            </div>
+            <Link href="/notices" className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              View All <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           {latestNotices.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {latestNotices.map((notice: any) => (
                 <NoticeCard key={notice.id} notice={notice} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              <Bell className="h-8 w-8 mx-auto mb-2 opacity-20" />
-              <p>No notices yet</p>
+            <div className="text-center py-16">
+              <Bell className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+              <p className="text-muted-foreground">No notices published yet. Check back soon!</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Categories - Quick Filter */}
-      <section className="py-12 px-4 bg-slate-50 border-b">
+      {/* University Categories */}
+      <section className="py-14 px-4 bg-slate-50 border-b">
         <div className="container mx-auto">
-          <h2 className="font-bold text-lg text-foreground mb-5">Browse by Type</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-foreground mb-2">🏛️ Browse by Type</h2>
+            <p className="text-muted-foreground">Find admission info by university category</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {universityCategories.map((cat) => (
               <Link key={cat.type} href={`/notices?universityType=${cat.type}`}>
-                <div className={`${cat.color} border border-slate-200 rounded-lg p-3 text-center hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer`}>
-                  <div className="text-xl mb-1">{cat.icon}</div>
-                  <span className="text-xs font-medium text-foreground">{cat.label}</span>
+                <div className={`${cat.color} rounded-xl p-5 text-center hover:shadow-lg transition-all cursor-pointer border border-slate-200 hover:border-blue-300`}>
+                  <div className="text-3xl mb-2">{cat.icon}</div>
+                  <span className="text-sm font-semibold text-foreground block">{cat.label}</span>
                 </div>
               </Link>
             ))}
@@ -154,15 +212,23 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Quick Links - Popular Universities */}
-      <section className="py-12 px-4 border-b">
+      {/* Popular Universities */}
+      <section className="py-14 px-4 border-b">
         <div className="container mx-auto">
-          <h2 className="font-bold text-lg text-foreground mb-5">Popular Universities</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-foreground mb-2">🎓 Popular Universities</h2>
+            <p className="text-muted-foreground">Quick access to top institutions</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {popularUniversities.map((uni) => (
               <Link key={uni.slug} href={`/universities/${uni.slug}`}>
-                <div className="border rounded-lg p-3 hover:border-primary/50 hover:bg-slate-50 transition-all cursor-pointer text-sm font-medium text-foreground">
-                  {uni.name}
+                <div className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+                      {uni.name.charAt(0)}
+                    </div>
+                    <span className="font-semibold text-foreground group-hover:text-blue-600 transition-colors">{uni.name}</span>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -170,17 +236,15 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Tips Section */}
+      {/* Admission Tips */}
       {tips.length > 0 && (
-        <section className="py-12 px-4 bg-slate-50 border-b">
+        <section className="py-14 px-4 bg-slate-50 border-b">
           <div className="container mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-bold text-lg text-foreground">Admission Tips</h2>
-              <Link href="/tips" className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1">
-                View All <ArrowRight className="h-3 w-3" />
-              </Link>
+            <div className="text-center mb-10">
+              <h2 className="text-2xl font-bold text-foreground mb-2">💡 Admission Tips</h2>
+              <p className="text-muted-foreground">Expert guidance for your preparation</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {tips.map((post: any) => (
                 <BlogCard key={post.id} post={post} />
               ))}
@@ -189,18 +253,17 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Final CTA - Minimal */}
-      <section className="py-12 px-4 text-center">
-        <div className="container mx-auto max-w-2xl">
-          <BookOpen className="h-8 w-8 mx-auto mb-3 text-primary/20" />
-          <h2 className="text-2xl font-bold mb-3">Start Your Admission Journey</h2>
-          <p className="text-muted-foreground text-sm mb-6">
-            Browse all universities and never miss an important admission notice.
+      {/* Final CTA */}
+      <section className="py-16 px-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white">
+        <div className="container mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Never Miss an Admission Update</h2>
+          <p className="text-blue-100 text-lg mb-8">
+            Join thousands of students staying updated with all admission news in one place.
           </p>
           <Link href="/notices">
-            <Button className="bg-primary hover:bg-primary/90 text-white">
-              Explore Now
-              <ArrowRight className="h-4 w-4 ml-2" />
+            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-semibold rounded-lg shadow-lg">
+              Start Exploring
+              <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
           </Link>
         </div>
