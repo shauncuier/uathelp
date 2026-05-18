@@ -47,8 +47,8 @@ const universityCategories = [
 const popularUniversities = [
   { name: "University of Dhaka", slug: "university-of-dhaka" },
   { name: "BUET", slug: "bangladesh-university-of-engineering-and-technology" },
-  { name: "DU Medical", slug: "university-of-dhaka" },
   { name: "Rajshahi University", slug: "rajshahi-university" },
+  { name: "Jahangirnagar University", slug: "jahangirnagar-university" },
 ];
 
 export default async function HomePage() {
