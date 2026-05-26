@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { NoticeCard } from "@/components/notices/NoticeCard";
 import { BlogCard } from "@/components/blog/BlogCard";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import { ApproachingDeadlines } from "@/components/notices/ApproachingDeadlines";
 import { adminDb } from "@/lib/firebase/admin";
 
 export const metadata: Metadata = {
@@ -14,6 +15,23 @@ export const metadata: Metadata = {
     "Find admission circulars, results, admit cards, and preparation tips for Bangladeshi universities. All in one place.",
 };
 export const revalidate = 300; // Revalidate every 5 minutes
+
+// Helper to convert Firestore objects to plain JS objects
+function toPlainObject(obj: any): any {
+  if (obj == null) return null;
+  if (obj instanceof Date) return obj;
+  if (obj?.toDate) return obj.toDate(); // Firestore Timestamp
+  if (typeof obj === 'object') {
+    if (Array.isArray(obj)) {
+      return obj.map(toPlainObject);
+    }
+    return Object.keys(obj).reduce((acc: any, key) => {
+      acc[key] = toPlainObject(obj[key]);
+      return acc;
+    }, {});
+  }
+  return obj;
+}
 
 async function getHomeData() {
   try {
@@ -25,20 +43,20 @@ async function getHomeData() {
     ]);
     
     const allNotices = noticesSnap.docs
-      .map(d => ({ id: d.id, ...d.data() } as any))
+      .map(d => toPlainObject({ id: d.id, ...d.data() }))
       .filter((n: any) => n.status === "published")
       .sort((a: any, b: any) => {
-        const timeA = a.publishedAt?.toMillis?.() || new Date(a.publishedAt || 0).getTime();
-        const timeB = b.publishedAt?.toMillis?.() || new Date(b.publishedAt || 0).getTime();
+        const timeA = a.publishedAt?.getTime?.() || new Date(a.publishedAt || 0).getTime();
+        const timeB = b.publishedAt?.getTime?.() || new Date(b.publishedAt || 0).getTime();
         return timeB - timeA;
       });
       
     const allBlogs = blogsSnap.docs
-      .map(d => ({ id: d.id, ...d.data() } as any))
+      .map(d => toPlainObject({ id: d.id, ...d.data() }))
       .filter((b: any) => b.status === "published")
       .sort((a: any, b: any) => {
-        const timeA = a.publishedAt?.toMillis?.() || new Date(a.publishedAt || 0).getTime();
-        const timeB = b.publishedAt?.toMillis?.() || new Date(b.publishedAt || 0).getTime();
+        const timeA = a.publishedAt?.getTime?.() || new Date(a.publishedAt || 0).getTime();
+        const timeB = b.publishedAt?.getTime?.() || new Date(b.publishedAt || 0).getTime();
         return timeB - timeA;
       });
     
@@ -74,13 +92,18 @@ export default async function HomePage() {
   const { urgentNotices, latestNotices, tips } = await getHomeData();
 
   return (
-    <div className="bg-gradient-to-b from-blue-50 to-white">
+    <div className="relative overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-[-12rem] top-[-12rem] h-[34rem] w-[34rem] rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute right-[-10rem] top-24 h-[32rem] w-[32rem] rounded-full bg-secondary/14 blur-3xl" />
+        <div className="absolute bottom-24 left-1/3 h-[30rem] w-[30rem] rounded-full bg-accent/10 blur-3xl" />
+      </div>
       {/* Hero Section */}
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center space-y-8">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
+            <div className="glass-badge inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
               <span>✨</span>
               <span>Bangladesh's #1 Admission Platform</span>
             </div>
@@ -90,7 +113,7 @@ export default async function HomePage() {
               <h1 className="text-5xl md:text-6xl font-bold text-foreground leading-tight">
                 Find Your Perfect
                 <br />
-                <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   University
                 </span>
               </h1>
@@ -107,13 +130,13 @@ export default async function HomePage() {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
               <Link href="/notices">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg rounded-lg">
+                <Button size="lg" className="rounded-lg">
                   <Bell className="h-5 w-5 mr-2" />
                   Browse Notices
                 </Button>
               </Link>
               <Link href="/universities">
-                <Button size="lg" variant="outline" className="border-2 border-blue-200 hover:bg-blue-50 rounded-lg">
+                <Button size="lg" variant="outline" className="rounded-lg">
                   <GraduationCap className="h-5 w-5 mr-2" />
                   Explore Universities
                 </Button>
@@ -124,19 +147,19 @@ export default async function HomePage() {
       </section>
 
       {/* Quick Stats */}
-      <section className="py-12 px-4 border-b">
+      <section className="py-12 px-4 border-b border-white/10">
         <div className="container mx-auto max-w-4xl">
           <div className="grid grid-cols-3 gap-4 md:gap-8">
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-blue-600">200+</div>
+              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">200+</div>
               <div className="text-sm text-muted-foreground mt-1">Universities</div>
             </div>
-            <div className="text-center border-l border-r border-slate-200">
-              <div className="text-3xl md:text-4xl font-bold text-blue-600">1000+</div>
+            <div className="text-center border-l border-r border-white/10">
+              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">1000+</div>
               <div className="text-sm text-muted-foreground mt-1">Notices</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-blue-600">50K+</div>
+              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">50K+</div>
               <div className="text-sm text-muted-foreground mt-1">Students</div>
             </div>
           </div>
@@ -145,14 +168,14 @@ export default async function HomePage() {
 
       {/* Urgent Notices */}
       {urgentNotices.length > 0 && (
-        <section className="py-14 px-4 bg-gradient-to-r from-red-50 to-orange-50 border-b">
+        <section className="py-14 px-4 border-b border-white/10 bg-destructive/5">
           <div className="container mx-auto">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
                 <h2 className="text-2xl font-bold text-foreground">🔔 Urgent Notices</h2>
               </div>
-              <Link href="/notices?urgent=true" className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              <Link href="/notices?urgent=true" className="text-sm font-semibold text-primary hover:text-secondary flex items-center gap-1 transition-colors">
                 View All <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -165,15 +188,18 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* Approaching Deadlines */}
+      <ApproachingDeadlines notices={latestNotices} thresholdDays={7} limit={5} />
+
       {/* Latest Notices */}
-      <section className="py-14 px-4 border-b">
+      <section className="py-14 px-4 border-b border-white/10">
         <div className="container mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl font-bold text-foreground">📋 Latest Notices</h2>
               <p className="text-sm text-muted-foreground mt-1">Recently published admissions</p>
             </div>
-            <Link href="/notices" className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            <Link href="/notices" className="text-sm font-semibold text-primary hover:text-secondary flex items-center gap-1 transition-colors">
               View All <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -193,7 +219,7 @@ export default async function HomePage() {
       </section>
 
       {/* University Categories */}
-      <section className="py-14 px-4 bg-slate-50 border-b">
+      <section className="py-14 px-4 border-b border-white/10 bg-white/[0.02]">
         <div className="container mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-foreground mb-2">🏛️ Browse by Type</h2>
@@ -202,7 +228,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {universityCategories.map((cat) => (
               <Link key={cat.type} href={`/notices?universityType=${cat.type}`}>
-                <div className={`${cat.color} rounded-xl p-5 text-center hover:shadow-lg transition-all cursor-pointer border border-slate-200 hover:border-blue-300`}>
+                <div className="glass-card glass-card-hover rounded-xl p-5 text-center cursor-pointer border-white/10">
                   <div className="text-3xl mb-2">{cat.icon}</div>
                   <span className="text-sm font-semibold text-foreground block">{cat.label}</span>
                 </div>
@@ -213,7 +239,7 @@ export default async function HomePage() {
       </section>
 
       {/* Popular Universities */}
-      <section className="py-14 px-4 border-b">
+      <section className="py-14 px-4 border-b border-white/10">
         <div className="container mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-foreground mb-2">🎓 Popular Universities</h2>
@@ -222,12 +248,12 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {popularUniversities.map((uni) => (
               <Link key={uni.slug} href={`/universities/${uni.slug}`}>
-                <div className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer group">
+                <div className="glass-card glass-card-hover rounded-xl p-4 cursor-pointer group">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center font-bold text-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary via-accent to-secondary text-primary-foreground flex items-center justify-center font-bold text-lg flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
                       {uni.name.charAt(0)}
                     </div>
-                    <span className="font-semibold text-foreground group-hover:text-blue-600 transition-colors">{uni.name}</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{uni.name}</span>
                   </div>
                 </div>
               </Link>
@@ -238,7 +264,7 @@ export default async function HomePage() {
 
       {/* Admission Tips */}
       {tips.length > 0 && (
-        <section className="py-14 px-4 bg-slate-50 border-b">
+        <section className="py-14 px-4 border-b border-white/10 bg-white/[0.02]">
           <div className="container mx-auto">
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold text-foreground mb-2">💡 Admission Tips</h2>
@@ -254,14 +280,14 @@ export default async function HomePage() {
       )}
 
       {/* Final CTA */}
-      <section className="py-16 px-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white">
+      <section className="py-16 px-4 bg-gradient-to-r from-primary/90 to-secondary/90 text-primary-foreground">
         <div className="container mx-auto max-w-2xl text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Never Miss an Admission Update</h2>
-          <p className="text-blue-100 text-lg mb-8">
+          <p className="text-primary-foreground/80 text-lg mb-8">
             Join thousands of students staying updated with all admission news in one place.
           </p>
           <Link href="/notices">
-            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-semibold rounded-lg shadow-lg">
+            <Button size="lg" variant="glass" className="font-semibold rounded-lg shadow-lg text-foreground">
               Start Exploring
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>

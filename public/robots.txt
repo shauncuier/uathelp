@@ -1,0 +1,43 @@
+# robots.txt for UAT Help
+# Guides search engines on how to crawl the site
+
+User-agent: *
+Allow: /
+Allow: /notices
+Allow: /tips
+Allow: /universities
+Allow: /about
+Allow: /contact
+Allow: /guides
+
+# Disallow admin and private sections
+Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /dashboard/
+Disallow: /_next/
+Disallow: /private/
+
+# Allow crawling of common resources
+Allow: /*.css$
+Allow: /*.js$
+Allow: /public/
+
+# Specific bot handling
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Slow crawlers - reduce crawl rate
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+# Sitemaps
+Sitemap: https://uathelp.com/sitemap.xml
+Sitemap: https://uathelp.com/sitemap-notices.xml
+Sitemap: https://uathelp.com/sitemap-posts.xml
+Sitemap: https://uathelp.com/sitemap-universities.xml

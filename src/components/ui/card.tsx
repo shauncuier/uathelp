@@ -5,14 +5,18 @@ import { cn } from "@/lib/utils"
 function Card({
   className,
   size = "default",
+  glass = false,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm"; glass?: boolean }) {
   return (
     <div
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-4 overflow-hidden rounded-2xl py-5 text-sm shadow-sm border transition-all duration-200 hover:shadow-md has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-2xl *:[img:last-child]:rounded-b-2xl",
+        glass
+          ? "glass-card glass-card-hover border-white/20 dark:border-white/10 text-card-foreground"
+          : "bg-card text-card-foreground border-border/50 ring-1 ring-foreground/5 backdrop-blur-sm hover:ring-foreground/10",
         className
       )}
       {...props}
@@ -84,7 +88,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-footer"
       className={cn(
-        "flex items-center rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/card:p-3",
+        "flex items-center rounded-b-2xl border-t border-border/50 dark:border-white/5 bg-muted/30 dark:bg-white/5 p-4 group-data-[size=sm]/card:p-3",
         className
       )}
       {...props}

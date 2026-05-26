@@ -8,6 +8,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { slug } = await params;
 
+    // Try query with both filters
     const snap = await adminDb
       .collection("notices")
       .where("slug", "==", slug)
@@ -15,7 +16,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .limit(1)
       .get();
 
-    if (snap.empty) return errorResponse("Notice not found", "NOT_FOUND", 404);
+    if (snap.empty) {
+      return errorResponse("Notice not found", "NOT_FOUND", 404);
+    }
 
     const doc = snap.docs[0];
     const notice = { id: doc.id, ...doc.data() };
@@ -23,25 +26,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Increment viewCount atomically (fire and forget)
     doc.ref.update({ viewCount: FieldValue.increment(1) }).catch(() => {});
 
-    // Get related notices from same university without composite index
-    const relatedSnap = await adminDb
-      .collection("notices")
-      .where("universityId", "==", (notice as any).universityId)
-      .get();
+    // Get related notices from same university
+    let related: any[] = [];
+    try {
+      const relatedSnap = await adminDb
+        .collection("notices")
+        .where("universityId", "==", (notice as any).universityId)
+        .get();
 
-    const related = relatedSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((n: any) => n.id !== doc.id && n.status === "published")
-      .sort((a: any, b: any) => {
-        const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
-        const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
-        return dateB - dateA;
-      })
-      .slice(0, 3);
+      related = relatedSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((n: any) => n.id !== doc.id && n.status === "published")
+        .sort((a: any, b: any) => {
+          const dateA = a.publishedAt?.toMillis ? a.publishedAt.toMillis() : new Date(a.publishedAt || 0).getTime();
+          const dateB = b.publishedAt?.toMillis ? b.publishedAt.toMillis() : new Date(b.publishedAt || 0).getTime();
+          return dateB - dateA;
+        })
+        .slice(0, 3);
+    } catch (relErr) {
+      // If related notices query fails, just return empty array
+      console.warn("Failed to fetch related notices:", relErr);
+    }
 
     return successResponse({ notice, related });
   } catch (err) {
-    console.error(err);
+    console.error("[notices/[slug]] Error:", err);
     return errorResponse("Failed to fetch notice", "SERVER_ERROR");
   }
 }

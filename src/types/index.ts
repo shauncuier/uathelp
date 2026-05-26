@@ -25,13 +25,20 @@ export type UniversityType =
 
 export type NoticeStatus = "draft" | "published" | "archived";
 
+export type VersionChangeType = "CREATE" | "UPDATE" | "RESTORE" | "DELETE_DRAFT";
+
 export type BlogCategory =
   | "tips"
   | "guide"
   | "routine"
   | "strategy"
   | "subject-guide"
-  | "news";
+  | "news"
+  | "study-tips"
+  | "exam-prep"
+  | "university-review"
+  | "career-guidance"
+  | "course-review";
 
 export type UserRole = "student" | "editor" | "admin";
 export type UserStatus = "active" | "suspended" | "disabled";
@@ -61,6 +68,8 @@ export interface Notice {
   searchKeywords: string[];
   isFeatured: boolean;
   isUrgent: boolean;
+  isApproachingDeadline?: boolean;
+  deadlineReminderDays?: number;
   viewCount: number;
   status: NoticeStatus;
   seoTitle?: string;
@@ -69,9 +78,58 @@ export interface Notice {
   updatedAt: Date;
   publishedAt?: Date;
   authorId: string;
+  
+  // Versioning
+  version: number; // Current version number (starts at 1)
+  versionHistoryCount: number; // Total number of versions
 }
 
-// ─── University ───────────────────────────────────────────────────────────────
+// ─── Notice Version ───────────────────────────────────────────────────────────
+
+export interface NoticeVersion {
+  id: string;
+  noticeId: string;
+  versionNumber: number;
+  
+  // Full notice snapshot
+  title: string;
+  slug: string;
+  summary: string;
+  body: string;
+  universityId: string;
+  universityName: string;
+  category: NoticeCategory;
+  universityType: UniversityType;
+  unit?: string;
+  session: string;
+  applicationStart?: Date;
+  applicationEnd?: Date;
+  examDate?: Date;
+  resultDate?: Date;
+  pdfUrl?: string;
+  officialUrl?: string;
+  imageUrl?: string;
+  tags: string[];
+  searchKeywords: string[];
+  isFeatured: boolean;
+  isUrgent: boolean;
+  viewCount: number;
+  status: NoticeStatus;
+  seoTitle?: string;
+  seoDescription?: string;
+  
+  // Change tracking
+  changeType: VersionChangeType;
+  changedFields: string[]; // List of field names that changed
+  changes: Record<string, { old: any; new: any }>; // Old vs new values
+  changelog: string; // Human-readable change summary
+  changeReason?: string; // Why the change was made (if provided)
+  
+  // Metadata
+  createdAt: Date;
+  createdBy: string; // User ID
+  createdByName?: string; // User name
+}
 
 export interface University {
   id: string;

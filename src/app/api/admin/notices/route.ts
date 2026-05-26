@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
       searchKeywords,
       viewCount: 0,
       authorId: user.uid,
+      version: 1,
+      versionHistoryCount: 1,
       createdAt: now,
       updatedAt: now,
     };
@@ -76,6 +78,44 @@ export async function POST(request: NextRequest) {
     }
 
     const ref = await adminDb.collection("notices").add(noticeData);
+
+    // Create initial version record
+    await ref.collection("versions").add({
+      noticeId: ref.id,
+      versionNumber: 1,
+      title: data.title,
+      slug,
+      summary: data.summary,
+      body: data.body,
+      universityId: data.universityId,
+      universityName: data.universityName,
+      category: data.category,
+      universityType: data.universityType,
+      unit: data.unit,
+      session: data.session,
+      applicationStart: data.applicationStart,
+      applicationEnd: data.applicationEnd,
+      examDate: data.examDate,
+      resultDate: data.resultDate,
+      pdfUrl: data.pdfUrl,
+      officialUrl: data.officialUrl,
+      imageUrl: data.imageUrl,
+      tags: data.tags || [],
+      searchKeywords,
+      isFeatured: data.isFeatured || false,
+      isUrgent: data.isUrgent || false,
+      viewCount: 0,
+      status: data.status,
+      seoTitle: data.seoTitle,
+      seoDescription: data.seoDescription,
+      changeType: "CREATE",
+      changedFields: [],
+      changes: {},
+      changelog: "Notice created",
+      createdAt: now,
+      createdBy: user.uid,
+      createdByName: user.email,
+    });
 
     await createAdminLog({
       action: "notice_created",

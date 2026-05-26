@@ -72,9 +72,9 @@ export default function NoticesContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b py-6 px-4">
+      <div className="border-b border-white/10 py-6 px-4 bg-white/[0.02] backdrop-blur-xl">
         <div className="container mx-auto">
           <h1 className="text-2xl font-bold text-foreground mb-1">Admission Notices</h1>
           <p className="text-sm text-muted-foreground">Browse all university admission notices and updates</p>
@@ -87,6 +87,7 @@ export default function NoticesContent() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              glass
               placeholder="Search by university or notice title..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}

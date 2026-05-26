@@ -20,7 +20,19 @@ interface PostFormProps {
   mode: "create" | "edit";
 }
 
-const categories = ["tips", "guide", "routine", "strategy", "subject-guide", "news"];
+const categories = [
+  "tips",
+  "guide",
+  "routine",
+  "strategy",
+  "subject-guide",
+  "news",
+  "study-tips",
+  "exam-prep",
+  "university-review",
+  "career-guidance",
+  "course-review",
+];
 const statuses = ["draft", "published", "archived"];
 
 function errorMessage(err: unknown, fallback: string) {

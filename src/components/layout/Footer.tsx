@@ -3,16 +3,24 @@ import { GraduationCap, Mail, Phone } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-300 mt-16">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="relative mt-24 glass-navbar border-t border-white/15 shadow-2xl shadow-black/40">
+      {/* Decorative gradient blur - Dark premium */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-bl from-primary/30 to-transparent dark:from-primary/15 rounded-full blur-3xl opacity-40"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-secondary/30 to-transparent dark:from-secondary/15 rounded-full blur-3xl opacity-40"></div>
+      </div>
+
+      <div className="container mx-auto px-4 py-16 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="md:col-span-2">
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl text-white mb-3">
-              <GraduationCap className="h-6 w-6 text-blue-400" />
-              <span>UAT Help</span>
+            <Link href="/" className="flex items-center gap-2 font-bold text-xl text-foreground mb-3 hover:opacity-80 transition-opacity">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-secondary shadow-lg shadow-primary/25">
+                <GraduationCap className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-bold">UAT Help</span>
             </Link>
-            <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
               Bangladesh&apos;s one-stop platform for university admission notices, circulars,
               results, admit cards, seat plans, and preparation tips.
             </p>
@@ -21,7 +29,7 @@ export function Footer() {
                 href="https://facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-400 hover:text-blue-400 transition-colors"
+                className="text-muted-foreground hover:text-primary hover:bg-white/15 p-2 rounded-lg transition-all duration-200 backdrop-blur shadow-lg shadow-primary/20 hover:shadow-primary/40"
                 aria-label="Facebook"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -30,7 +38,7 @@ export function Footer() {
               </a>
               <a
                 href="mailto:contact@uathelp.com"
-                className="text-slate-400 hover:text-blue-400 transition-colors"
+                className="text-muted-foreground hover:text-primary hover:bg-white/15 p-2 rounded-lg transition-all duration-200 backdrop-blur shadow-lg shadow-primary/20 hover:shadow-primary/40"
                 aria-label="Email"
               >
                 <Mail className="h-5 w-5" />
@@ -40,7 +48,7 @@ export function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">
+            <h3 className="font-semibold text-foreground mb-4 text-sm uppercase tracking-wider">
               Quick Links
             </h3>
             <ul className="space-y-2 text-sm">
@@ -53,9 +61,10 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-slate-400 hover:text-white transition-colors"
+                    className="text-muted-foreground hover:text-primary hover:translate-x-1 transition-all duration-200 inline-block relative group"
                   >
                     {link.label}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-200"></span>
                   </Link>
                 </li>
               ))}
@@ -64,7 +73,7 @@ export function Footer() {
 
           {/* Info */}
           <div>
-            <h3 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">
+            <h3 className="font-semibold text-foreground mb-4 text-sm uppercase tracking-wider">
               Information
             </h3>
             <ul className="space-y-2 text-sm">
@@ -75,9 +84,10 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-slate-400 hover:text-white transition-colors"
+                    className="text-muted-foreground hover:text-primary hover:translate-x-1 transition-all duration-200 inline-block relative group"
                   >
                     {link.label}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-200"></span>
                   </Link>
                 </li>
               ))}
@@ -85,9 +95,9 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-slate-800 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
-          <p>© {new Date().getFullYear()} UAT Help. All rights reserved.</p>
-          <p className="text-xs">
+        <div className="border-t border-white/15 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
+          <p className="text-muted-foreground">© {new Date().getFullYear()} UAT Help. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground/70">
             Always verify information from official university websites.
           </p>
         </div>
